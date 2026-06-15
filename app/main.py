@@ -1,6 +1,7 @@
-﻿from fastapi import FastAPI
+from fastapi import FastAPI
 
 from app.api.routes.health import router as health_router
+from app.api.routes.readiness import router as readiness_router
 from app.config.settings import get_settings
 
 
@@ -20,6 +21,12 @@ def create_app() -> FastAPI:
         health_router,
         prefix=settings.api_v1_prefix,
         tags=["health"],
+    )
+
+    app.include_router(
+        readiness_router,
+        prefix=settings.api_v1_prefix,
+        tags=["readiness"],
     )
 
     return app
