@@ -188,6 +188,8 @@ Current status:
 - SQLAlchemy engine and session foundation introduced
 - Alembic migration environment introduced
 - Database readiness endpoint available
+- SourceDocument and DocumentVersion domain foundation introduced
+- Initial document persistence tables introduced
 - Seed documents planned but not yet generated
 
 ## Documentation
