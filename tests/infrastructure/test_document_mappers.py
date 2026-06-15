@@ -1,0 +1,58 @@
+from uuid import uuid4
+
+from app.domain.documents.entities import DocumentVersion, IngestionRun, SourceDocument
+from app.domain.documents.enums import IngestionRunStatus, SourceSystem
+from app.infrastructure.db.mappers.document_mappers import (
+    document_version_from_model,
+    document_version_to_model,
+    ingestion_run_from_model,
+    ingestion_run_to_model,
+    source_document_from_model,
+    source_document_to_model,
+)
+
+
+def test_source_document_mapper_round_trips_domain_entity() -> None:
+    document = SourceDocument.create(
+        source_system=SourceSystem.LOCAL_SEED_DOCUMENTS,
+        external_id="project-atlas-status.md",
+        source_uri="seed_documents/project-atlas-status.md",
+        title="Project Atlas Status",
+    )
+    version_id = uuid4()
+    document.mark_current_version(version_id)
+
+    model = source_document_to_model(document)
+    mapped_document = source_document_from_model(model)
+
+    assert mapped_document == document
+
+
+def test_document_version_mapper_round_trips_domain_entity() -> None:
+    document_version = DocumentVersion(
+        id=uuid4(),
+        source_document_id=uuid4(),
+        version_number=1,
+        content_checksum="content-checksum",
+        metadata_checksum="metadata-checksum",
+        raw_content="# Project Atlas Status",
+        created_by_run_id=uuid4(),
+    )
+
+    model = document_version_to_model(document_version)
+    mapped_version = document_version_from_model(model)
+
+    assert mapped_version == document_version
+
+
+def test_ingestion_run_mapper_round_trips_domain_entity() -> None:
+    ingestion_run = IngestionRun.start(
+        source_system=SourceSystem.LOCAL_SEED_DOCUMENTS,
+    )
+    ingestion_run.mark_completed(documents_seen=3, documents_changed=2)
+
+    model = ingestion_run_to_model(ingestion_run)
+    mapped_run = ingestion_run_from_model(model)
+
+    assert mapped_run == ingestion_run
+    assert mapped_run.status == IngestionRunStatus.COMPLETED
