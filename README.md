@@ -190,6 +190,8 @@ Current status:
 - Database readiness endpoint available
 - SourceDocument and DocumentVersion domain foundation introduced
 - Initial document persistence tables introduced
+- Local Markdown discovery endpoint introduced
+- Seed documents directory prepared
 - Seed documents planned but not yet generated
 
 ## Documentation
