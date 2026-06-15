@@ -1,4 +1,4 @@
-﻿from functools import lru_cache
+from functools import lru_cache
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     database_url: str = Field(
         default="postgresql+psycopg://rag_user:rag_password@localhost:5432/rag_indexing"
     )
+    seed_documents_path: str = Field(default="seed_documents")
 
 
 @lru_cache
