@@ -4,12 +4,14 @@ from app.domain.documents.enums import (
     SourceDocumentStatus,
     SourceSystem,
 )
+from app.domain.documents.source_candidates import SourceDocumentCandidate
 
 __all__ = [
     "DocumentVersion",
     "IngestionRun",
     "IngestionRunStatus",
     "SourceDocument",
+    "SourceDocumentCandidate",
     "SourceDocumentStatus",
     "SourceSystem",
 ]
