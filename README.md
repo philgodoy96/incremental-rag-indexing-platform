@@ -182,10 +182,12 @@ Seed documents are part of the system design and testing strategy. They are intr
 Current status:
 
 - Project foundation documentation completed
-- Initial FastAPI application scaffold introduced
+- FastAPI application scaffold introduced
 - Docker development environment introduced
 - PostgreSQL with pgvector prepared for persistence
-- Initial health check endpoint available
+- SQLAlchemy engine and session foundation introduced
+- Alembic migration environment introduced
+- Database readiness endpoint available
 - Seed documents planned but not yet generated
 
 ## Documentation
