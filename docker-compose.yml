@@ -1,0 +1,40 @@
+﻿services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: rag-indexing-postgres
+    environment:
+      POSTGRES_DB: rag_indexing
+      POSTGRES_USER: rag_user
+      POSTGRES_PASSWORD: rag_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag_user -d rag_indexing"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag-indexing-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_NAME: Incremental RAG Indexing Platform
+      APP_ENVIRONMENT: docker
+      LOG_LEVEL: INFO
+      API_V1_PREFIX: /api/v1
+      DATABASE_URL: postgresql+psycopg://rag_user:rag_password@postgres:5432/rag_indexing
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:
