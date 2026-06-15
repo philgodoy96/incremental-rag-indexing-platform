@@ -181,9 +181,11 @@ Seed documents are part of the system design and testing strategy. They are intr
 
 Current status:
 
-- Project foundation documentation in progress
-- Application code not yet introduced
-- Initial architecture decisions documented
+- Project foundation documentation completed
+- Initial FastAPI application scaffold introduced
+- Docker development environment introduced
+- PostgreSQL with pgvector prepared for persistence
+- Initial health check endpoint available
 - Seed documents planned but not yet generated
 
 ## Documentation
