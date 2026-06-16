@@ -24,6 +24,7 @@ class FakeLocalSeedDocumentIngestionService:
             status=IngestionRunStatus.COMPLETED,
             documents_seen=1,
             documents_changed=1,
+            sections_created=2,
             documents=(
                 LocalSeedDocumentIngestionItem(
                     external_id="project-atlas-status.md",
@@ -33,6 +34,7 @@ class FakeLocalSeedDocumentIngestionService:
                     document_version_id=uuid4(),
                     version_number=1,
                     content_checksum="content-checksum",
+                    sections_created=2,
                 ),
             ),
         )
@@ -58,9 +60,11 @@ def test_ingest_local_seed_documents_returns_ingestion_result() -> None:
     assert payload["status"] == "completed"
     assert payload["documents_seen"] == 1
     assert payload["documents_changed"] == 1
+    assert payload["sections_created"] == 2
     assert payload["documents"][0]["external_id"] == "project-atlas-status.md"
     assert payload["documents"][0]["action"] == "created"
     assert payload["documents"][0]["version_number"] == 1
+    assert payload["documents"][0]["sections_created"] == 2
     assert "raw_content" not in payload["documents"][0]
 
     app.dependency_overrides.clear()

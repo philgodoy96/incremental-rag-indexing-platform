@@ -5,11 +5,17 @@ from app.application.services.local_seed_document_ingestion_service import (
     LocalSeedDocumentIngestionAction,
     LocalSeedDocumentIngestionService,
 )
-from app.domain.documents.entities import DocumentVersion, IngestionRun, SourceDocument
+from app.domain.documents.entities import (
+    DocumentVersion,
+    IngestionRun,
+    SectionVersion,
+    SourceDocument,
+)
 from app.domain.documents.enums import SourceSystem
 from app.domain.documents.repositories import (
     DocumentVersionRepository,
     IngestionRunRepository,
+    SectionVersionRepository,
     SourceDocumentRepository,
 )
 
@@ -66,6 +72,28 @@ class InMemoryDocumentVersionRepository(DocumentVersionRepository):
         self.document_versions[document_version.id] = document_version
 
 
+class InMemorySectionVersionRepository(SectionVersionRepository):
+    def __init__(self) -> None:
+        self.section_versions: dict[UUID, SectionVersion] = {}
+
+    def list_for_document_version(
+        self,
+        document_version_id: UUID,
+    ) -> list[SectionVersion]:
+        return sorted(
+            [
+                section
+                for section in self.section_versions.values()
+                if section.document_version_id == document_version_id
+            ],
+            key=lambda section: section.ordinal,
+        )
+
+    def save_many(self, section_versions: list[SectionVersion]) -> None:
+        for section_version in section_versions:
+            self.section_versions[section_version.id] = section_version
+
+
 class InMemoryIngestionRunRepository(IngestionRunRepository):
     def __init__(self) -> None:
         self.ingestion_runs: dict[UUID, IngestionRun] = {}
@@ -81,15 +109,17 @@ class InMemoryDocumentIngestionTransaction:
     def __init__(self) -> None:
         self.source_document_repository = InMemorySourceDocumentRepository()
         self.document_version_repository = InMemoryDocumentVersionRepository()
+        self.section_version_repository = InMemorySectionVersionRepository()
         self.ingestion_run_repository = InMemoryIngestionRunRepository()
 
         self.source_documents: SourceDocumentRepository = self.source_document_repository
         self.document_versions: DocumentVersionRepository = self.document_version_repository
+        self.section_versions: SectionVersionRepository = self.section_version_repository
         self.ingestion_runs: IngestionRunRepository = self.ingestion_run_repository
 
-        self.flush_count = 0
         self.commit_count = 0
         self.rollback_count = 0
+        self.flush_count = 0
 
     def flush(self) -> None:
         self.flush_count += 1
@@ -101,11 +131,11 @@ class InMemoryDocumentIngestionTransaction:
         self.rollback_count += 1
 
 
-def test_local_seed_ingestion_creates_document_and_initial_version(
+def test_local_seed_ingestion_creates_document_initial_version_and_sections(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "project-atlas-status.md").write_text(
-        "# Project Atlas Status\n\nStatus: On Track\n",
+        "# Project Atlas Status\n\n## Summary\n\nStatus: On Track\n",
         encoding="utf-8",
     )
     transaction = InMemoryDocumentIngestionTransaction()
@@ -115,9 +145,12 @@ def test_local_seed_ingestion_creates_document_and_initial_version(
 
     assert result.documents_seen == 1
     assert result.documents_changed == 1
+    assert result.sections_created == 1
     assert result.documents[0].action == LocalSeedDocumentIngestionAction.CREATED
+    assert result.documents[0].sections_created == 1
     assert len(transaction.source_document_repository.documents) == 1
     assert len(transaction.document_version_repository.document_versions) == 1
+    assert len(transaction.section_version_repository.section_versions) == 1
     assert transaction.commit_count == 1
     assert transaction.rollback_count == 0
 
@@ -127,7 +160,7 @@ def test_local_seed_ingestion_is_idempotent_for_unchanged_documents(
 ) -> None:
     document_path = tmp_path / "project-atlas-status.md"
     document_path.write_text(
-        "# Project Atlas Status\n\nStatus: On Track\n",
+        "# Project Atlas Status\n\n## Summary\n\nStatus: On Track\n",
         encoding="utf-8",
     )
     transaction = InMemoryDocumentIngestionTransaction()
@@ -138,17 +171,44 @@ def test_local_seed_ingestion_is_idempotent_for_unchanged_documents(
 
     assert second_result.documents_seen == 1
     assert second_result.documents_changed == 0
+    assert second_result.sections_created == 0
     assert second_result.documents[0].action == LocalSeedDocumentIngestionAction.UNCHANGED
+    assert second_result.documents[0].sections_created == 0
     assert len(transaction.source_document_repository.documents) == 1
     assert len(transaction.document_version_repository.document_versions) == 1
+    assert len(transaction.section_version_repository.section_versions) == 1
 
 
-def test_local_seed_ingestion_creates_new_version_when_content_changes(
+def test_local_seed_ingestion_backfills_sections_for_existing_version_without_sections(
     tmp_path: Path,
 ) -> None:
     document_path = tmp_path / "project-atlas-status.md"
     document_path.write_text(
-        "# Project Atlas Status\n\nStatus: On Track\n",
+        "# Project Atlas Status\n\n## Summary\n\nStatus: On Track\n",
+        encoding="utf-8",
+    )
+    transaction = InMemoryDocumentIngestionTransaction()
+    service = LocalSeedDocumentIngestionService(source_path=tmp_path)
+
+    service.ingest(transaction)
+    transaction.section_version_repository.section_versions.clear()
+
+    second_result = service.ingest(transaction)
+
+    assert second_result.documents_changed == 0
+    assert second_result.sections_created == 1
+    assert second_result.documents[0].action == LocalSeedDocumentIngestionAction.UNCHANGED
+    assert second_result.documents[0].sections_created == 1
+    assert len(transaction.document_version_repository.document_versions) == 1
+    assert len(transaction.section_version_repository.section_versions) == 1
+
+
+def test_local_seed_ingestion_creates_new_version_and_sections_when_content_changes(
+    tmp_path: Path,
+) -> None:
+    document_path = tmp_path / "project-atlas-status.md"
+    document_path.write_text(
+        "# Project Atlas Status\n\n## Summary\n\nStatus: On Track\n",
         encoding="utf-8",
     )
     transaction = InMemoryDocumentIngestionTransaction()
@@ -157,7 +217,7 @@ def test_local_seed_ingestion_creates_new_version_when_content_changes(
     service.ingest(transaction)
 
     document_path.write_text(
-        "# Project Atlas Status\n\nStatus: At Risk\n",
+        "# Project Atlas Status\n\n## Summary\n\nStatus: At Risk\n",
         encoding="utf-8",
     )
 
@@ -165,7 +225,10 @@ def test_local_seed_ingestion_creates_new_version_when_content_changes(
 
     assert second_result.documents_seen == 1
     assert second_result.documents_changed == 1
+    assert second_result.sections_created == 1
     assert second_result.documents[0].action == LocalSeedDocumentIngestionAction.VERSION_CREATED
     assert second_result.documents[0].version_number == 2
+    assert second_result.documents[0].sections_created == 1
     assert len(transaction.source_document_repository.documents) == 1
     assert len(transaction.document_version_repository.document_versions) == 2
+    assert len(transaction.section_version_repository.section_versions) == 2

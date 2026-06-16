@@ -1,7 +1,12 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from app.domain.documents.entities import DocumentVersion, IngestionRun, SourceDocument
+from app.domain.documents.entities import (
+    DocumentVersion,
+    IngestionRun,
+    SectionVersion,
+    SourceDocument,
+)
 from app.domain.documents.enums import SourceSystem
 
 
@@ -38,6 +43,19 @@ class DocumentVersionRepository(ABC):
 
     @abstractmethod
     def save(self, document_version: DocumentVersion) -> None:
+        raise NotImplementedError
+
+
+class SectionVersionRepository(ABC):
+    @abstractmethod
+    def list_for_document_version(
+        self,
+        document_version_id: UUID,
+    ) -> list[SectionVersion]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def save_many(self, section_versions: list[SectionVersion]) -> None:
         raise NotImplementedError
 
 

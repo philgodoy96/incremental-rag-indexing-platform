@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+﻿from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -122,6 +122,36 @@ class DocumentVersion:
         ensure_timezone_aware(self.created_at, "created_at")
 
 
+@dataclass(frozen=True, slots=True)
+class SectionVersion:
+    id: UUID
+    document_version_id: UUID
+    stable_section_key: str
+    heading_path: tuple[str, ...]
+    heading_level: int
+    title: str
+    body: str
+    section_checksum: str
+    ordinal: int
+    created_at: datetime = field(default_factory=utc_now)
+
+    def __post_init__(self) -> None:
+        ensure_not_blank(self.stable_section_key, "stable_section_key")
+        ensure_not_blank(self.title, "title")
+        ensure_not_blank(self.body, "body")
+        ensure_not_blank(self.section_checksum, "section_checksum")
+        ensure_timezone_aware(self.created_at, "created_at")
+
+        if not self.heading_path:
+            raise ValueError("heading_path must not be empty")
+
+        if self.heading_level < 1 or self.heading_level > 6:
+            raise ValueError("heading_level must be between 1 and 6")
+
+        if self.ordinal < 0:
+            raise ValueError("ordinal must not be negative")
+
+
 @dataclass(slots=True)
 class IngestionRun:
     id: UUID
@@ -131,6 +161,7 @@ class IngestionRun:
     completed_at: datetime | None = None
     documents_seen: int = 0
     documents_changed: int = 0
+    sections_created: int = 0
     error_message: str | None = None
 
     def __post_init__(self) -> None:
@@ -144,6 +175,9 @@ class IngestionRun:
 
         if self.documents_changed < 0:
             raise ValueError("documents_changed must not be negative")
+
+        if self.sections_created < 0:
+            raise ValueError("sections_created must not be negative")
 
         if self.documents_changed > self.documents_seen:
             raise ValueError("documents_changed cannot exceed documents_seen")
@@ -162,6 +196,7 @@ class IngestionRun:
         *,
         documents_seen: int,
         documents_changed: int,
+        sections_created: int = 0,
         completed_at: datetime | None = None,
     ) -> None:
         completion_time = completed_at or utc_now()
@@ -169,6 +204,7 @@ class IngestionRun:
         self.status = IngestionRunStatus.COMPLETED
         self.documents_seen = documents_seen
         self.documents_changed = documents_changed
+        self.sections_created = sections_created
         self.completed_at = completion_time
 
         self.__post_init__()

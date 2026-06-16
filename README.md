@@ -193,6 +193,8 @@ Current status:
 - Local Markdown discovery endpoint introduced
 - Persistent local seed ingestion endpoint introduced
 - Initial seed documents committed
+- Markdown section extraction introduced
+- SectionVersion persistence introduced
 
 ## Documentation
 
