@@ -1,6 +1,8 @@
 from app.domain.documents.entities import (
     ChunkVersion,
     DocumentVersion,
+    EmbeddingCostRecord,
+    EmbeddingRecord,
     IngestionRun,
     SectionVersion,
     SourceDocument,
@@ -13,6 +15,8 @@ from app.domain.documents.enums import (
 from app.infrastructure.db.models.document_models import (
     ChunkVersionModel,
     DocumentVersionModel,
+    EmbeddingCostRecordModel,
+    EmbeddingRecordModel,
     IngestionRunModel,
     SectionVersionModel,
     SourceDocumentModel,
@@ -143,6 +147,68 @@ def chunk_version_from_model(model: ChunkVersionModel) -> ChunkVersion:
     )
 
 
+def embedding_record_to_model(entity: EmbeddingRecord) -> EmbeddingRecordModel:
+    model = EmbeddingRecordModel()
+
+    model.id = entity.id
+    model.chunk_version_id = entity.chunk_version_id
+    model.provider = entity.provider
+    model.model_name = entity.model_name
+    model.embedding_input_hash = entity.embedding_input_hash
+    model.embedding_vector = list(entity.embedding_vector)
+    model.dimensions = entity.dimensions
+    model.input_token_estimate = entity.input_token_estimate
+    model.created_at = entity.created_at
+
+    return model
+
+
+def embedding_record_from_model(model: EmbeddingRecordModel) -> EmbeddingRecord:
+    return EmbeddingRecord(
+        id=model.id,
+        chunk_version_id=model.chunk_version_id,
+        provider=model.provider,
+        model_name=model.model_name,
+        embedding_input_hash=model.embedding_input_hash,
+        embedding_vector=tuple(model.embedding_vector),
+        dimensions=model.dimensions,
+        input_token_estimate=model.input_token_estimate,
+        created_at=model.created_at,
+    )
+
+
+def embedding_cost_record_to_model(
+    entity: EmbeddingCostRecord,
+) -> EmbeddingCostRecordModel:
+    model = EmbeddingCostRecordModel()
+
+    model.id = entity.id
+    model.ingestion_run_id = entity.ingestion_run_id
+    model.embedding_record_id = entity.embedding_record_id
+    model.provider = entity.provider
+    model.model_name = entity.model_name
+    model.input_token_estimate = entity.input_token_estimate
+    model.estimated_cost_usd_micros = entity.estimated_cost_usd_micros
+    model.created_at = entity.created_at
+
+    return model
+
+
+def embedding_cost_record_from_model(
+    model: EmbeddingCostRecordModel,
+) -> EmbeddingCostRecord:
+    return EmbeddingCostRecord(
+        id=model.id,
+        ingestion_run_id=model.ingestion_run_id,
+        embedding_record_id=model.embedding_record_id,
+        provider=model.provider,
+        model_name=model.model_name,
+        input_token_estimate=model.input_token_estimate,
+        estimated_cost_usd_micros=model.estimated_cost_usd_micros,
+        created_at=model.created_at,
+    )
+
+
 def ingestion_run_to_model(entity: IngestionRun) -> IngestionRunModel:
     model = IngestionRunModel()
 
@@ -155,6 +221,11 @@ def ingestion_run_to_model(entity: IngestionRun) -> IngestionRunModel:
     model.documents_changed = entity.documents_changed
     model.sections_created = entity.sections_created
     model.chunks_created = entity.chunks_created
+    model.embeddings_created = entity.embeddings_created
+    model.embedding_tokens_processed = entity.embedding_tokens_processed
+    model.estimated_embedding_cost_usd_micros = (
+        entity.estimated_embedding_cost_usd_micros
+    )
     model.error_message = entity.error_message
 
     return model
@@ -171,5 +242,8 @@ def ingestion_run_from_model(model: IngestionRunModel) -> IngestionRun:
         documents_changed=model.documents_changed,
         sections_created=model.sections_created,
         chunks_created=model.chunks_created,
+        embeddings_created=model.embeddings_created,
+        embedding_tokens_processed=model.embedding_tokens_processed,
+        estimated_embedding_cost_usd_micros=model.estimated_embedding_cost_usd_micros,
         error_message=model.error_message,
     )

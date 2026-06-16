@@ -21,6 +21,17 @@ class IngestionRunModel(Base):
     documents_changed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     sections_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     chunks_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    embeddings_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    embedding_tokens_processed: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+    estimated_embedding_cost_usd_micros: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
     error_message: Mapped[str | None] = mapped_column(Text)
 
 
@@ -150,4 +161,62 @@ class ChunkVersionModel(Base):
     embedding_input_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     token_estimate: Mapped[int] = mapped_column(Integer, nullable=False)
     risk_flags: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class EmbeddingRecordModel(Base):
+    __tablename__ = "embedding_records"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "chunk_version_id",
+            "provider",
+            "model_name",
+            "embedding_input_hash",
+            name="uq_embedding_records_identity",
+        ),
+        Index("ix_embedding_records_chunk_version_id", "chunk_version_id"),
+        Index("ix_embedding_records_embedding_input_hash", "embedding_input_hash"),
+        Index("ix_embedding_records_provider_model", "provider", "model_name"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
+    chunk_version_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("chunk_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    embedding_input_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    embedding_vector: Mapped[list[float]] = mapped_column(JSONB, nullable=False)
+    dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
+    input_token_estimate: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class EmbeddingCostRecordModel(Base):
+    __tablename__ = "embedding_cost_records"
+
+    __table_args__ = (
+        Index("ix_embedding_cost_records_ingestion_run_id", "ingestion_run_id"),
+        Index("ix_embedding_cost_records_embedding_record_id", "embedding_record_id"),
+        Index("ix_embedding_cost_records_provider_model", "provider", "model_name"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
+    ingestion_run_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("ingestion_runs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    embedding_record_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("embedding_records.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    input_token_estimate: Mapped[int] = mapped_column(Integer, nullable=False)
+    estimated_cost_usd_micros: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

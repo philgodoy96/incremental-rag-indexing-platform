@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from app.domain.documents.repositories import (
     ChunkVersionRepository,
     DocumentVersionRepository,
+    EmbeddingCostRecordRepository,
+    EmbeddingRecordRepository,
     IngestionRunRepository,
     SectionVersionRepository,
     SourceDocumentRepository,
@@ -10,6 +12,8 @@ from app.domain.documents.repositories import (
 from app.infrastructure.repositories import (
     SqlAlchemyChunkVersionRepository,
     SqlAlchemyDocumentVersionRepository,
+    SqlAlchemyEmbeddingCostRecordRepository,
+    SqlAlchemyEmbeddingRecordRepository,
     SqlAlchemyIngestionRunRepository,
     SqlAlchemySectionVersionRepository,
     SqlAlchemySourceDocumentRepository,
@@ -32,6 +36,12 @@ class SqlAlchemyDocumentIngestionTransaction:
         )
         self.chunk_versions: ChunkVersionRepository = SqlAlchemyChunkVersionRepository(
             session,
+        )
+        self.embedding_records: EmbeddingRecordRepository = (
+            SqlAlchemyEmbeddingRecordRepository(session)
+        )
+        self.embedding_cost_records: EmbeddingCostRecordRepository = (
+            SqlAlchemyEmbeddingCostRecordRepository(session)
         )
         self.ingestion_runs: IngestionRunRepository = SqlAlchemyIngestionRunRepository(
             session,

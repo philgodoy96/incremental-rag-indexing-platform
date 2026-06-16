@@ -184,6 +184,57 @@ class ChunkVersion:
             ensure_not_blank(risk_flag, "risk_flag")
 
 
+@dataclass(frozen=True, slots=True)
+class EmbeddingRecord:
+    id: UUID
+    chunk_version_id: UUID
+    provider: str
+    model_name: str
+    embedding_input_hash: str
+    embedding_vector: tuple[float, ...]
+    dimensions: int
+    input_token_estimate: int
+    created_at: datetime = field(default_factory=utc_now)
+
+    def __post_init__(self) -> None:
+        ensure_not_blank(self.provider, "provider")
+        ensure_not_blank(self.model_name, "model_name")
+        ensure_not_blank(self.embedding_input_hash, "embedding_input_hash")
+        ensure_timezone_aware(self.created_at, "created_at")
+
+        if self.dimensions < 1:
+            raise ValueError("dimensions must be greater than or equal to 1")
+
+        if len(self.embedding_vector) != self.dimensions:
+            raise ValueError("embedding_vector length must match dimensions")
+
+        if self.input_token_estimate < 1:
+            raise ValueError("input_token_estimate must be greater than or equal to 1")
+
+
+@dataclass(frozen=True, slots=True)
+class EmbeddingCostRecord:
+    id: UUID
+    ingestion_run_id: UUID
+    embedding_record_id: UUID
+    provider: str
+    model_name: str
+    input_token_estimate: int
+    estimated_cost_usd_micros: int
+    created_at: datetime = field(default_factory=utc_now)
+
+    def __post_init__(self) -> None:
+        ensure_not_blank(self.provider, "provider")
+        ensure_not_blank(self.model_name, "model_name")
+        ensure_timezone_aware(self.created_at, "created_at")
+
+        if self.input_token_estimate < 1:
+            raise ValueError("input_token_estimate must be greater than or equal to 1")
+
+        if self.estimated_cost_usd_micros < 0:
+            raise ValueError("estimated_cost_usd_micros must not be negative")
+
+
 @dataclass(slots=True)
 class IngestionRun:
     id: UUID
@@ -195,6 +246,9 @@ class IngestionRun:
     documents_changed: int = 0
     sections_created: int = 0
     chunks_created: int = 0
+    embeddings_created: int = 0
+    embedding_tokens_processed: int = 0
+    estimated_embedding_cost_usd_micros: int = 0
     error_message: str | None = None
 
     def __post_init__(self) -> None:
@@ -215,6 +269,15 @@ class IngestionRun:
         if self.chunks_created < 0:
             raise ValueError("chunks_created must not be negative")
 
+        if self.embeddings_created < 0:
+            raise ValueError("embeddings_created must not be negative")
+
+        if self.embedding_tokens_processed < 0:
+            raise ValueError("embedding_tokens_processed must not be negative")
+
+        if self.estimated_embedding_cost_usd_micros < 0:
+            raise ValueError("estimated_embedding_cost_usd_micros must not be negative")
+
         if self.documents_changed > self.documents_seen:
             raise ValueError("documents_changed cannot exceed documents_seen")
 
@@ -234,6 +297,9 @@ class IngestionRun:
         documents_changed: int,
         sections_created: int = 0,
         chunks_created: int = 0,
+        embeddings_created: int = 0,
+        embedding_tokens_processed: int = 0,
+        estimated_embedding_cost_usd_micros: int = 0,
         completed_at: datetime | None = None,
     ) -> None:
         completion_time = completed_at or utc_now()
@@ -243,6 +309,9 @@ class IngestionRun:
         self.documents_changed = documents_changed
         self.sections_created = sections_created
         self.chunks_created = chunks_created
+        self.embeddings_created = embeddings_created
+        self.embedding_tokens_processed = embedding_tokens_processed
+        self.estimated_embedding_cost_usd_micros = estimated_embedding_cost_usd_micros
         self.completed_at = completion_time
 
         self.__post_init__()

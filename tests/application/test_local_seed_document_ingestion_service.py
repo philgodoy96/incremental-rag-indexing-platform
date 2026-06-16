@@ -8,6 +8,8 @@ from app.application.services.local_seed_document_ingestion_service import (
 from app.domain.documents.entities import (
     ChunkVersion,
     DocumentVersion,
+    EmbeddingCostRecord,
+    EmbeddingRecord,
     IngestionRun,
     SectionVersion,
     SourceDocument,
@@ -16,6 +18,8 @@ from app.domain.documents.enums import SourceSystem
 from app.domain.documents.repositories import (
     ChunkVersionRepository,
     DocumentVersionRepository,
+    EmbeddingCostRecordRepository,
+    EmbeddingRecordRepository,
     IngestionRunRepository,
     SectionVersionRepository,
     SourceDocumentRepository,
@@ -118,6 +122,43 @@ class InMemoryChunkVersionRepository(ChunkVersionRepository):
             self.chunk_versions[chunk_version.id] = chunk_version
 
 
+class InMemoryEmbeddingRecordRepository(EmbeddingRecordRepository):
+    def __init__(self) -> None:
+        self.embedding_records: dict[UUID, EmbeddingRecord] = {}
+
+    def get_by_chunk_identity(
+        self,
+        *,
+        chunk_version_id: UUID,
+        provider: str,
+        model_name: str,
+        embedding_input_hash: str,
+    ) -> EmbeddingRecord | None:
+        for record in self.embedding_records.values():
+            if (
+                record.chunk_version_id == chunk_version_id
+                and record.provider == provider
+                and record.model_name == model_name
+                and record.embedding_input_hash == embedding_input_hash
+            ):
+                return record
+
+        return None
+
+    def save_many(self, embedding_records: list[EmbeddingRecord]) -> None:
+        for embedding_record in embedding_records:
+            self.embedding_records[embedding_record.id] = embedding_record
+
+
+class InMemoryEmbeddingCostRecordRepository(EmbeddingCostRecordRepository):
+    def __init__(self) -> None:
+        self.cost_records: dict[UUID, EmbeddingCostRecord] = {}
+
+    def save_many(self, cost_records: list[EmbeddingCostRecord]) -> None:
+        for cost_record in cost_records:
+            self.cost_records[cost_record.id] = cost_record
+
+
 class InMemoryIngestionRunRepository(IngestionRunRepository):
     def __init__(self) -> None:
         self.ingestion_runs: dict[UUID, IngestionRun] = {}
@@ -135,12 +176,20 @@ class InMemoryDocumentIngestionTransaction:
         self.document_version_repository = InMemoryDocumentVersionRepository()
         self.section_version_repository = InMemorySectionVersionRepository()
         self.chunk_version_repository = InMemoryChunkVersionRepository()
+        self.embedding_record_repository = InMemoryEmbeddingRecordRepository()
+        self.embedding_cost_record_repository = InMemoryEmbeddingCostRecordRepository()
         self.ingestion_run_repository = InMemoryIngestionRunRepository()
 
         self.source_documents: SourceDocumentRepository = self.source_document_repository
         self.document_versions: DocumentVersionRepository = self.document_version_repository
         self.section_versions: SectionVersionRepository = self.section_version_repository
         self.chunk_versions: ChunkVersionRepository = self.chunk_version_repository
+        self.embedding_records: EmbeddingRecordRepository = (
+            self.embedding_record_repository
+        )
+        self.embedding_cost_records: EmbeddingCostRecordRepository = (
+            self.embedding_cost_record_repository
+        )
         self.ingestion_runs: IngestionRunRepository = self.ingestion_run_repository
 
         self.commit_count = 0
@@ -157,7 +206,7 @@ class InMemoryDocumentIngestionTransaction:
         self.rollback_count += 1
 
 
-def test_local_seed_ingestion_creates_document_version_sections_and_chunks(
+def test_local_seed_ingestion_creates_document_version_sections_chunks_and_embeddings(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "project-atlas-status.md").write_text(
@@ -173,13 +222,19 @@ def test_local_seed_ingestion_creates_document_version_sections_and_chunks(
     assert result.documents_changed == 1
     assert result.sections_created == 1
     assert result.chunks_created == 1
+    assert result.embeddings_created == 1
+    assert result.embedding_tokens_processed == 3
+    assert result.estimated_embedding_cost_usd_micros == 0
     assert result.documents[0].action == LocalSeedDocumentIngestionAction.CREATED
-    assert result.documents[0].sections_created == 1
-    assert result.documents[0].chunks_created == 1
+    assert result.documents[0].embeddings_created == 1
+    assert result.documents[0].embedding_tokens_processed == 3
+    assert result.documents[0].estimated_embedding_cost_usd_micros == 0
     assert len(transaction.source_document_repository.documents) == 1
     assert len(transaction.document_version_repository.document_versions) == 1
     assert len(transaction.section_version_repository.section_versions) == 1
     assert len(transaction.chunk_version_repository.chunk_versions) == 1
+    assert len(transaction.embedding_record_repository.embedding_records) == 1
+    assert len(transaction.embedding_cost_record_repository.cost_records) == 1
     assert transaction.commit_count == 1
     assert transaction.rollback_count == 0
 
@@ -202,16 +257,19 @@ def test_local_seed_ingestion_is_idempotent_for_unchanged_documents(
     assert second_result.documents_changed == 0
     assert second_result.sections_created == 0
     assert second_result.chunks_created == 0
+    assert second_result.embeddings_created == 0
+    assert second_result.embedding_tokens_processed == 0
+    assert second_result.estimated_embedding_cost_usd_micros == 0
     assert second_result.documents[0].action == LocalSeedDocumentIngestionAction.UNCHANGED
-    assert second_result.documents[0].sections_created == 0
-    assert second_result.documents[0].chunks_created == 0
     assert len(transaction.source_document_repository.documents) == 1
     assert len(transaction.document_version_repository.document_versions) == 1
     assert len(transaction.section_version_repository.section_versions) == 1
     assert len(transaction.chunk_version_repository.chunk_versions) == 1
+    assert len(transaction.embedding_record_repository.embedding_records) == 1
+    assert len(transaction.embedding_cost_record_repository.cost_records) == 1
 
 
-def test_local_seed_ingestion_backfills_chunks_for_existing_sections(
+def test_local_seed_ingestion_backfills_embeddings_for_existing_chunks(
     tmp_path: Path,
 ) -> None:
     document_path = tmp_path / "project-atlas-status.md"
@@ -223,21 +281,26 @@ def test_local_seed_ingestion_backfills_chunks_for_existing_sections(
     service = LocalSeedDocumentIngestionService(source_path=tmp_path)
 
     service.ingest(transaction)
-    transaction.chunk_version_repository.chunk_versions.clear()
+    transaction.embedding_record_repository.embedding_records.clear()
+    transaction.embedding_cost_record_repository.cost_records.clear()
 
     second_result = service.ingest(transaction)
 
     assert second_result.documents_changed == 0
     assert second_result.sections_created == 0
-    assert second_result.chunks_created == 1
+    assert second_result.chunks_created == 0
+    assert second_result.embeddings_created == 1
+    assert second_result.embedding_tokens_processed == 3
     assert second_result.documents[0].action == LocalSeedDocumentIngestionAction.UNCHANGED
-    assert second_result.documents[0].chunks_created == 1
+    assert second_result.documents[0].embeddings_created == 1
     assert len(transaction.document_version_repository.document_versions) == 1
     assert len(transaction.section_version_repository.section_versions) == 1
     assert len(transaction.chunk_version_repository.chunk_versions) == 1
+    assert len(transaction.embedding_record_repository.embedding_records) == 1
+    assert len(transaction.embedding_cost_record_repository.cost_records) == 1
 
 
-def test_local_seed_ingestion_creates_new_version_sections_and_chunks_when_content_changes(
+def test_ingestion_creates_new_version_artifacts_when_content_changes(
     tmp_path: Path,
 ) -> None:
     document_path = tmp_path / "project-atlas-status.md"
@@ -261,11 +324,13 @@ def test_local_seed_ingestion_creates_new_version_sections_and_chunks_when_conte
     assert second_result.documents_changed == 1
     assert second_result.sections_created == 1
     assert second_result.chunks_created == 1
+    assert second_result.embeddings_created == 1
     assert second_result.documents[0].action == LocalSeedDocumentIngestionAction.VERSION_CREATED
     assert second_result.documents[0].version_number == 2
-    assert second_result.documents[0].sections_created == 1
-    assert second_result.documents[0].chunks_created == 1
+    assert second_result.documents[0].embeddings_created == 1
     assert len(transaction.source_document_repository.documents) == 1
     assert len(transaction.document_version_repository.document_versions) == 2
     assert len(transaction.section_version_repository.section_versions) == 2
     assert len(transaction.chunk_version_repository.chunk_versions) == 2
+    assert len(transaction.embedding_record_repository.embedding_records) == 2
+    assert len(transaction.embedding_cost_record_repository.cost_records) == 2

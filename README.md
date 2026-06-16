@@ -197,6 +197,8 @@ Current status:
 - SectionVersion persistence introduced
 - Deterministic chunking introduced
 - ChunkVersion persistence introduced
+- Fake deterministic embedding provider introduced
+- EmbeddingRecord and EmbeddingCostRecord persistence introduced
 
 ## Documentation
 

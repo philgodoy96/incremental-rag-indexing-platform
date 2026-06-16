@@ -3,6 +3,8 @@ from uuid import uuid4
 from app.domain.documents.entities import (
     ChunkVersion,
     DocumentVersion,
+    EmbeddingCostRecord,
+    EmbeddingRecord,
     IngestionRun,
     SectionVersion,
     SourceDocument,
@@ -13,6 +15,10 @@ from app.infrastructure.db.mappers.document_mappers import (
     chunk_version_to_model,
     document_version_from_model,
     document_version_to_model,
+    embedding_cost_record_from_model,
+    embedding_cost_record_to_model,
+    embedding_record_from_model,
+    embedding_record_to_model,
     ingestion_run_from_model,
     ingestion_run_to_model,
     section_version_from_model,
@@ -93,6 +99,41 @@ def test_chunk_version_mapper_round_trips_domain_entity() -> None:
     assert mapped_chunk == chunk_version
 
 
+def test_embedding_record_mapper_round_trips_domain_entity() -> None:
+    embedding_record = EmbeddingRecord(
+        id=uuid4(),
+        chunk_version_id=uuid4(),
+        provider="fake",
+        model_name="fake-embedding-v1",
+        embedding_input_hash="embedding-input-hash",
+        embedding_vector=(0.1, 0.2, 0.3),
+        dimensions=3,
+        input_token_estimate=12,
+    )
+
+    model = embedding_record_to_model(embedding_record)
+    mapped_embedding = embedding_record_from_model(model)
+
+    assert mapped_embedding == embedding_record
+
+
+def test_embedding_cost_record_mapper_round_trips_domain_entity() -> None:
+    cost_record = EmbeddingCostRecord(
+        id=uuid4(),
+        ingestion_run_id=uuid4(),
+        embedding_record_id=uuid4(),
+        provider="fake",
+        model_name="fake-embedding-v1",
+        input_token_estimate=12,
+        estimated_cost_usd_micros=0,
+    )
+
+    model = embedding_cost_record_to_model(cost_record)
+    mapped_cost = embedding_cost_record_from_model(model)
+
+    assert mapped_cost == cost_record
+
+
 def test_ingestion_run_mapper_round_trips_domain_entity() -> None:
     ingestion_run = IngestionRun.start(
         source_system=SourceSystem.LOCAL_SEED_DOCUMENTS,
@@ -102,6 +143,9 @@ def test_ingestion_run_mapper_round_trips_domain_entity() -> None:
         documents_changed=2,
         sections_created=8,
         chunks_created=8,
+        embeddings_created=8,
+        embedding_tokens_processed=300,
+        estimated_embedding_cost_usd_micros=0,
     )
 
     model = ingestion_run_to_model(ingestion_run)
@@ -109,5 +153,5 @@ def test_ingestion_run_mapper_round_trips_domain_entity() -> None:
 
     assert mapped_run == ingestion_run
     assert mapped_run.status == IngestionRunStatus.COMPLETED
-    assert mapped_run.sections_created == 8
-    assert mapped_run.chunks_created == 8
+    assert mapped_run.embeddings_created == 8
+    assert mapped_run.embedding_tokens_processed == 300

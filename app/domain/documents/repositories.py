@@ -4,6 +4,8 @@ from uuid import UUID
 from app.domain.documents.entities import (
     ChunkVersion,
     DocumentVersion,
+    EmbeddingCostRecord,
+    EmbeddingRecord,
     IngestionRun,
     SectionVersion,
     SourceDocument,
@@ -70,6 +72,29 @@ class ChunkVersionRepository(ABC):
 
     @abstractmethod
     def save_many(self, chunk_versions: list[ChunkVersion]) -> None:
+        raise NotImplementedError
+
+
+class EmbeddingRecordRepository(ABC):
+    @abstractmethod
+    def get_by_chunk_identity(
+        self,
+        *,
+        chunk_version_id: UUID,
+        provider: str,
+        model_name: str,
+        embedding_input_hash: str,
+    ) -> EmbeddingRecord | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def save_many(self, embedding_records: list[EmbeddingRecord]) -> None:
+        raise NotImplementedError
+
+
+class EmbeddingCostRecordRepository(ABC):
+    @abstractmethod
+    def save_many(self, cost_records: list[EmbeddingCostRecord]) -> None:
         raise NotImplementedError
 
 
