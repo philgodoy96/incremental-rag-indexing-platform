@@ -1,4 +1,5 @@
 from app.infrastructure.repositories.sqlalchemy_document_repositories import (
+    SqlAlchemyChunkVersionRepository,
     SqlAlchemyDocumentVersionRepository,
     SqlAlchemyIngestionRunRepository,
     SqlAlchemySectionVersionRepository,
@@ -6,6 +7,7 @@ from app.infrastructure.repositories.sqlalchemy_document_repositories import (
 )
 
 __all__ = [
+    "SqlAlchemyChunkVersionRepository",
     "SqlAlchemyDocumentVersionRepository",
     "SqlAlchemyIngestionRunRepository",
     "SqlAlchemySectionVersionRepository",

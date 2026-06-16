@@ -1,4 +1,5 @@
 from app.infrastructure.db.models.document_models import (
+    ChunkVersionModel,
     DocumentVersionModel,
     IngestionRunModel,
     SectionVersionModel,
@@ -6,6 +7,7 @@ from app.infrastructure.db.models.document_models import (
 )
 
 __all__ = [
+    "ChunkVersionModel",
     "DocumentVersionModel",
     "IngestionRunModel",
     "SectionVersionModel",

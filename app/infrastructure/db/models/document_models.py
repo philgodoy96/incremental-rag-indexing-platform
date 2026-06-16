@@ -20,6 +20,7 @@ class IngestionRunModel(Base):
     documents_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     documents_changed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     sections_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    chunks_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error_message: Mapped[str | None] = mapped_column(Text)
 
 
@@ -119,4 +120,34 @@ class SectionVersionModel(Base):
     body: Mapped[str] = mapped_column(Text, nullable=False)
     section_checksum: Mapped[str] = mapped_column(String(128), nullable=False)
     ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ChunkVersionModel(Base):
+    __tablename__ = "chunk_versions"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "section_version_id",
+            "chunk_index",
+            name="uq_chunk_versions_section_version_id_chunk_index",
+        ),
+        Index("ix_chunk_versions_section_version_id", "section_version_id"),
+        Index("ix_chunk_versions_chunk_hash", "chunk_hash"),
+        Index("ix_chunk_versions_embedding_input_hash", "embedding_input_hash"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
+    section_version_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("section_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    heading_context: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    chunk_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    embedding_input_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    token_estimate: Mapped[int] = mapped_column(Integer, nullable=False)
+    risk_flags: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

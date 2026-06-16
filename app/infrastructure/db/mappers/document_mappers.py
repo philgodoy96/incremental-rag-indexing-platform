@@ -1,4 +1,5 @@
 from app.domain.documents.entities import (
+    ChunkVersion,
     DocumentVersion,
     IngestionRun,
     SectionVersion,
@@ -10,6 +11,7 @@ from app.domain.documents.enums import (
     SourceSystem,
 )
 from app.infrastructure.db.models.document_models import (
+    ChunkVersionModel,
     DocumentVersionModel,
     IngestionRunModel,
     SectionVersionModel,
@@ -109,6 +111,38 @@ def section_version_from_model(model: SectionVersionModel) -> SectionVersion:
     )
 
 
+def chunk_version_to_model(entity: ChunkVersion) -> ChunkVersionModel:
+    model = ChunkVersionModel()
+
+    model.id = entity.id
+    model.section_version_id = entity.section_version_id
+    model.chunk_index = entity.chunk_index
+    model.content = entity.content
+    model.heading_context = list(entity.heading_context)
+    model.chunk_hash = entity.chunk_hash
+    model.embedding_input_hash = entity.embedding_input_hash
+    model.token_estimate = entity.token_estimate
+    model.risk_flags = list(entity.risk_flags)
+    model.created_at = entity.created_at
+
+    return model
+
+
+def chunk_version_from_model(model: ChunkVersionModel) -> ChunkVersion:
+    return ChunkVersion(
+        id=model.id,
+        section_version_id=model.section_version_id,
+        chunk_index=model.chunk_index,
+        content=model.content,
+        heading_context=tuple(model.heading_context),
+        chunk_hash=model.chunk_hash,
+        embedding_input_hash=model.embedding_input_hash,
+        token_estimate=model.token_estimate,
+        risk_flags=tuple(model.risk_flags),
+        created_at=model.created_at,
+    )
+
+
 def ingestion_run_to_model(entity: IngestionRun) -> IngestionRunModel:
     model = IngestionRunModel()
 
@@ -120,6 +154,7 @@ def ingestion_run_to_model(entity: IngestionRun) -> IngestionRunModel:
     model.documents_seen = entity.documents_seen
     model.documents_changed = entity.documents_changed
     model.sections_created = entity.sections_created
+    model.chunks_created = entity.chunks_created
     model.error_message = entity.error_message
 
     return model
@@ -135,5 +170,6 @@ def ingestion_run_from_model(model: IngestionRunModel) -> IngestionRun:
         documents_seen=model.documents_seen,
         documents_changed=model.documents_changed,
         sections_created=model.sections_created,
+        chunks_created=model.chunks_created,
         error_message=model.error_message,
     )
