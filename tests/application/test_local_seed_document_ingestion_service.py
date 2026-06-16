@@ -6,6 +6,7 @@ from app.application.services.local_seed_document_ingestion_service import (
     LocalSeedDocumentIngestionService,
 )
 from app.domain.documents.entities import (
+    ChunkVersion,
     DocumentVersion,
     IngestionRun,
     SectionVersion,
@@ -13,6 +14,7 @@ from app.domain.documents.entities import (
 )
 from app.domain.documents.enums import SourceSystem
 from app.domain.documents.repositories import (
+    ChunkVersionRepository,
     DocumentVersionRepository,
     IngestionRunRepository,
     SectionVersionRepository,
@@ -94,6 +96,28 @@ class InMemorySectionVersionRepository(SectionVersionRepository):
             self.section_versions[section_version.id] = section_version
 
 
+class InMemoryChunkVersionRepository(ChunkVersionRepository):
+    def __init__(self) -> None:
+        self.chunk_versions: dict[UUID, ChunkVersion] = {}
+
+    def list_for_section_version(
+        self,
+        section_version_id: UUID,
+    ) -> list[ChunkVersion]:
+        return sorted(
+            [
+                chunk
+                for chunk in self.chunk_versions.values()
+                if chunk.section_version_id == section_version_id
+            ],
+            key=lambda chunk: chunk.chunk_index,
+        )
+
+    def save_many(self, chunk_versions: list[ChunkVersion]) -> None:
+        for chunk_version in chunk_versions:
+            self.chunk_versions[chunk_version.id] = chunk_version
+
+
 class InMemoryIngestionRunRepository(IngestionRunRepository):
     def __init__(self) -> None:
         self.ingestion_runs: dict[UUID, IngestionRun] = {}
@@ -110,11 +134,13 @@ class InMemoryDocumentIngestionTransaction:
         self.source_document_repository = InMemorySourceDocumentRepository()
         self.document_version_repository = InMemoryDocumentVersionRepository()
         self.section_version_repository = InMemorySectionVersionRepository()
+        self.chunk_version_repository = InMemoryChunkVersionRepository()
         self.ingestion_run_repository = InMemoryIngestionRunRepository()
 
         self.source_documents: SourceDocumentRepository = self.source_document_repository
         self.document_versions: DocumentVersionRepository = self.document_version_repository
         self.section_versions: SectionVersionRepository = self.section_version_repository
+        self.chunk_versions: ChunkVersionRepository = self.chunk_version_repository
         self.ingestion_runs: IngestionRunRepository = self.ingestion_run_repository
 
         self.commit_count = 0
@@ -131,7 +157,7 @@ class InMemoryDocumentIngestionTransaction:
         self.rollback_count += 1
 
 
-def test_local_seed_ingestion_creates_document_initial_version_and_sections(
+def test_local_seed_ingestion_creates_document_version_sections_and_chunks(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "project-atlas-status.md").write_text(
@@ -146,11 +172,14 @@ def test_local_seed_ingestion_creates_document_initial_version_and_sections(
     assert result.documents_seen == 1
     assert result.documents_changed == 1
     assert result.sections_created == 1
+    assert result.chunks_created == 1
     assert result.documents[0].action == LocalSeedDocumentIngestionAction.CREATED
     assert result.documents[0].sections_created == 1
+    assert result.documents[0].chunks_created == 1
     assert len(transaction.source_document_repository.documents) == 1
     assert len(transaction.document_version_repository.document_versions) == 1
     assert len(transaction.section_version_repository.section_versions) == 1
+    assert len(transaction.chunk_version_repository.chunk_versions) == 1
     assert transaction.commit_count == 1
     assert transaction.rollback_count == 0
 
@@ -172,14 +201,17 @@ def test_local_seed_ingestion_is_idempotent_for_unchanged_documents(
     assert second_result.documents_seen == 1
     assert second_result.documents_changed == 0
     assert second_result.sections_created == 0
+    assert second_result.chunks_created == 0
     assert second_result.documents[0].action == LocalSeedDocumentIngestionAction.UNCHANGED
     assert second_result.documents[0].sections_created == 0
+    assert second_result.documents[0].chunks_created == 0
     assert len(transaction.source_document_repository.documents) == 1
     assert len(transaction.document_version_repository.document_versions) == 1
     assert len(transaction.section_version_repository.section_versions) == 1
+    assert len(transaction.chunk_version_repository.chunk_versions) == 1
 
 
-def test_local_seed_ingestion_backfills_sections_for_existing_version_without_sections(
+def test_local_seed_ingestion_backfills_chunks_for_existing_sections(
     tmp_path: Path,
 ) -> None:
     document_path = tmp_path / "project-atlas-status.md"
@@ -191,19 +223,21 @@ def test_local_seed_ingestion_backfills_sections_for_existing_version_without_se
     service = LocalSeedDocumentIngestionService(source_path=tmp_path)
 
     service.ingest(transaction)
-    transaction.section_version_repository.section_versions.clear()
+    transaction.chunk_version_repository.chunk_versions.clear()
 
     second_result = service.ingest(transaction)
 
     assert second_result.documents_changed == 0
-    assert second_result.sections_created == 1
+    assert second_result.sections_created == 0
+    assert second_result.chunks_created == 1
     assert second_result.documents[0].action == LocalSeedDocumentIngestionAction.UNCHANGED
-    assert second_result.documents[0].sections_created == 1
+    assert second_result.documents[0].chunks_created == 1
     assert len(transaction.document_version_repository.document_versions) == 1
     assert len(transaction.section_version_repository.section_versions) == 1
+    assert len(transaction.chunk_version_repository.chunk_versions) == 1
 
 
-def test_local_seed_ingestion_creates_new_version_and_sections_when_content_changes(
+def test_local_seed_ingestion_creates_new_version_sections_and_chunks_when_content_changes(
     tmp_path: Path,
 ) -> None:
     document_path = tmp_path / "project-atlas-status.md"
@@ -226,9 +260,12 @@ def test_local_seed_ingestion_creates_new_version_and_sections_when_content_chan
     assert second_result.documents_seen == 1
     assert second_result.documents_changed == 1
     assert second_result.sections_created == 1
+    assert second_result.chunks_created == 1
     assert second_result.documents[0].action == LocalSeedDocumentIngestionAction.VERSION_CREATED
     assert second_result.documents[0].version_number == 2
     assert second_result.documents[0].sections_created == 1
+    assert second_result.documents[0].chunks_created == 1
     assert len(transaction.source_document_repository.documents) == 1
     assert len(transaction.document_version_repository.document_versions) == 2
     assert len(transaction.section_version_repository.section_versions) == 2
+    assert len(transaction.chunk_version_repository.chunk_versions) == 2
