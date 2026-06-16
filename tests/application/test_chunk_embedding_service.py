@@ -5,14 +5,17 @@ from app.application.services.chunk_embedding_service import (
     build_embedding_input,
 )
 from app.domain.documents.entities import (
+    ChunkEmbeddingLink,
     ChunkVersion,
     EmbeddingCostRecord,
     EmbeddingRecord,
 )
 from app.domain.documents.repositories import (
+    ChunkEmbeddingLinkRepository,
     EmbeddingCostRecordRepository,
     EmbeddingRecordRepository,
 )
+from app.providers.fake_embedding_provider import FakeEmbeddingProvider
 
 
 class InMemoryEmbeddingRecordRepository(EmbeddingRecordRepository):
@@ -60,6 +63,25 @@ class InMemoryEmbeddingRecordRepository(EmbeddingRecordRepository):
             self.embedding_records[embedding_record.id] = embedding_record
 
 
+class InMemoryChunkEmbeddingLinkRepository(ChunkEmbeddingLinkRepository):
+    def __init__(self) -> None:
+        self.links: dict[UUID, ChunkEmbeddingLink] = {}
+
+    def get_by_chunk_version_id(
+        self,
+        chunk_version_id: UUID,
+    ) -> ChunkEmbeddingLink | None:
+        for link in self.links.values():
+            if link.chunk_version_id == chunk_version_id:
+                return link
+
+        return None
+
+    def save_many(self, links: list[ChunkEmbeddingLink]) -> None:
+        for link in links:
+            self.links[link.id] = link
+
+
 class InMemoryEmbeddingCostRecordRepository(EmbeddingCostRecordRepository):
     def __init__(self) -> None:
         self.cost_records: dict[UUID, EmbeddingCostRecord] = {}
@@ -71,16 +93,9 @@ class InMemoryEmbeddingCostRecordRepository(EmbeddingCostRecordRepository):
 
 class InMemoryEmbeddingTransaction:
     def __init__(self) -> None:
-        self.embedding_record_repository = InMemoryEmbeddingRecordRepository()
-        self.embedding_cost_record_repository = InMemoryEmbeddingCostRecordRepository()
-
-        self.embedding_records: EmbeddingRecordRepository = (
-            self.embedding_record_repository
-        )
-        self.embedding_cost_records: EmbeddingCostRecordRepository = (
-            self.embedding_cost_record_repository
-        )
-
+        self.embedding_records = InMemoryEmbeddingRecordRepository()
+        self.chunk_embedding_links = InMemoryChunkEmbeddingLinkRepository()
+        self.embedding_cost_records = InMemoryEmbeddingCostRecordRepository()
         self.flush_count = 0
 
     def flush(self) -> None:
@@ -113,7 +128,7 @@ def test_build_embedding_input_includes_heading_context() -> None:
 def test_chunk_embedding_service_creates_embedding_and_cost_record() -> None:
     chunk = make_chunk()
     transaction = InMemoryEmbeddingTransaction()
-    service = ChunkEmbeddingService()
+    service = ChunkEmbeddingService(provider=FakeEmbeddingProvider())
 
     summary = service.ensure_embeddings_for_chunks(
         chunks=[chunk],
@@ -122,17 +137,18 @@ def test_chunk_embedding_service_creates_embedding_and_cost_record() -> None:
     )
 
     assert summary.embeddings_created == 1
+    assert summary.embeddings_reused == 0
     assert summary.embedding_tokens_processed == 3
     assert summary.estimated_embedding_cost_usd_micros == 0
-    assert len(transaction.embedding_record_repository.embedding_records) == 1
-    assert len(transaction.embedding_cost_record_repository.cost_records) == 1
-    assert transaction.flush_count == 2
+    assert len(transaction.embedding_records.embedding_records) == 1
+    assert len(transaction.chunk_embedding_links.links) == 1
+    assert len(transaction.embedding_cost_records.cost_records) == 1
 
 
 def test_chunk_embedding_service_is_idempotent_for_existing_embedding() -> None:
     chunk = make_chunk()
     transaction = InMemoryEmbeddingTransaction()
-    service = ChunkEmbeddingService()
+    service = ChunkEmbeddingService(provider=FakeEmbeddingProvider())
 
     service.ensure_embeddings_for_chunks(
         chunks=[chunk],
@@ -146,7 +162,8 @@ def test_chunk_embedding_service_is_idempotent_for_existing_embedding() -> None:
     )
 
     assert second_summary.embeddings_created == 0
+    assert second_summary.embeddings_reused == 0
     assert second_summary.embedding_tokens_processed == 0
-    assert second_summary.estimated_embedding_cost_usd_micros == 0
-    assert len(transaction.embedding_record_repository.embedding_records) == 1
-    assert len(transaction.embedding_cost_record_repository.cost_records) == 1
+    assert len(transaction.embedding_records.embedding_records) == 1
+    assert len(transaction.chunk_embedding_links.links) == 1
+    assert len(transaction.embedding_cost_records.cost_records) == 1

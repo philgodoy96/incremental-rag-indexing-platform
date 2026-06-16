@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.domain.documents.repositories import (
+    ChunkEmbeddingLinkRepository,
     ChunkVersionRepository,
     DocumentVersionRepository,
     EmbeddingCostRecordRepository,
@@ -10,6 +11,7 @@ from app.domain.documents.repositories import (
     SourceDocumentRepository,
 )
 from app.infrastructure.repositories import (
+    SqlAlchemyChunkEmbeddingLinkRepository,
     SqlAlchemyChunkVersionRepository,
     SqlAlchemyDocumentVersionRepository,
     SqlAlchemyEmbeddingCostRecordRepository,
@@ -21,30 +23,32 @@ from app.infrastructure.repositories import (
 
 
 class SqlAlchemyDocumentIngestionTransaction:
-    """SQLAlchemy-backed transaction boundary for document ingestion."""
-
     def __init__(self, session: Session) -> None:
         self._session = session
-        self.source_documents: SourceDocumentRepository = SqlAlchemySourceDocumentRepository(
-            session,
+
+        self.source_documents: SourceDocumentRepository = (
+            SqlAlchemySourceDocumentRepository(session)
         )
-        self.document_versions: DocumentVersionRepository = SqlAlchemyDocumentVersionRepository(
-            session,
+        self.document_versions: DocumentVersionRepository = (
+            SqlAlchemyDocumentVersionRepository(session)
         )
-        self.section_versions: SectionVersionRepository = SqlAlchemySectionVersionRepository(
-            session,
+        self.section_versions: SectionVersionRepository = (
+            SqlAlchemySectionVersionRepository(session)
         )
-        self.chunk_versions: ChunkVersionRepository = SqlAlchemyChunkVersionRepository(
-            session,
+        self.chunk_versions: ChunkVersionRepository = (
+            SqlAlchemyChunkVersionRepository(session)
         )
         self.embedding_records: EmbeddingRecordRepository = (
             SqlAlchemyEmbeddingRecordRepository(session)
         )
+        self.chunk_embedding_links: ChunkEmbeddingLinkRepository = (
+            SqlAlchemyChunkEmbeddingLinkRepository(session)
+        )
         self.embedding_cost_records: EmbeddingCostRecordRepository = (
             SqlAlchemyEmbeddingCostRecordRepository(session)
         )
-        self.ingestion_runs: IngestionRunRepository = SqlAlchemyIngestionRunRepository(
-            session,
+        self.ingestion_runs: IngestionRunRepository = (
+            SqlAlchemyIngestionRunRepository(session)
         )
 
     def flush(self) -> None:

@@ -45,6 +45,7 @@ class IngestedDocumentResponse(BaseModel):
     sections_created: int
     chunks_created: int
     embeddings_created: int
+    embeddings_reused: int
     embedding_tokens_processed: int
     estimated_embedding_cost_usd_micros: int
 
@@ -59,6 +60,7 @@ class LocalSeedDocumentIngestionResponse(BaseModel):
     sections_created: int
     chunks_created: int
     embeddings_created: int
+    embeddings_reused: int
     embedding_tokens_processed: int
     estimated_embedding_cost_usd_micros: int
     documents: list[IngestedDocumentResponse]
@@ -160,6 +162,7 @@ def build_ingestion_response(
         sections_created=result.sections_created,
         chunks_created=result.chunks_created,
         embeddings_created=result.embeddings_created,
+        embeddings_reused=result.embeddings_reused,
         embedding_tokens_processed=result.embedding_tokens_processed,
         estimated_embedding_cost_usd_micros=result.estimated_embedding_cost_usd_micros,
         documents=[
@@ -174,6 +177,7 @@ def build_ingestion_response(
                 sections_created=document.sections_created,
                 chunks_created=document.chunks_created,
                 embeddings_created=document.embeddings_created,
+                embeddings_reused=document.embeddings_reused,
                 embedding_tokens_processed=document.embedding_tokens_processed,
                 estimated_embedding_cost_usd_micros=(
                     document.estimated_embedding_cost_usd_micros

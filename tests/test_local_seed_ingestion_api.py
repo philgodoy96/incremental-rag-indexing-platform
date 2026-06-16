@@ -27,6 +27,7 @@ class FakeLocalSeedDocumentIngestionService:
             sections_created=2,
             chunks_created=3,
             embeddings_created=3,
+            embeddings_reused=0,
             embedding_tokens_processed=42,
             estimated_embedding_cost_usd_micros=0,
             documents=(
@@ -41,6 +42,7 @@ class FakeLocalSeedDocumentIngestionService:
                     sections_created=2,
                     chunks_created=3,
                     embeddings_created=3,
+                    embeddings_reused=0,
                     embedding_tokens_processed=42,
                     estimated_embedding_cost_usd_micros=0,
                 ),
@@ -71,6 +73,7 @@ def test_ingest_local_seed_documents_returns_ingestion_result() -> None:
     assert payload["sections_created"] == 2
     assert payload["chunks_created"] == 3
     assert payload["embeddings_created"] == 3
+    assert payload["embeddings_reused"] == 0
     assert payload["embedding_tokens_processed"] == 42
     assert payload["estimated_embedding_cost_usd_micros"] == 0
     assert payload["documents"][0]["external_id"] == "project-atlas-status.md"
@@ -78,6 +81,7 @@ def test_ingest_local_seed_documents_returns_ingestion_result() -> None:
     assert payload["documents"][0]["version_number"] == 1
     assert payload["documents"][0]["sections_created"] == 2
     assert payload["documents"][0]["chunks_created"] == 3
+    assert payload["documents"][0]["embeddings_reused"] == 0
     assert payload["documents"][0]["embeddings_created"] == 3
     assert payload["documents"][0]["embedding_tokens_processed"] == 42
     assert payload["documents"][0]["estimated_embedding_cost_usd_micros"] == 0
