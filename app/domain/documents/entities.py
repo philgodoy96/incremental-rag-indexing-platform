@@ -247,6 +247,91 @@ class EmbeddingCostRecord:
 
 
 @dataclass(slots=True)
+class VectorIndexEntry:
+    id: UUID
+    source_document_id: UUID
+    document_version_id: UUID
+    section_version_id: UUID
+    chunk_version_id: UUID
+    embedding_record_id: UUID
+    stable_section_key: str
+    chunk_index: int
+    provider: str
+    model_name: str
+    embedding_input_hash: str
+    content: str
+    heading_context: tuple[str, ...]
+    embedding_vector: tuple[float, ...]
+    dimensions: int
+    is_active: bool = True
+    created_at: datetime = field(default_factory=utc_now)
+    updated_at: datetime = field(default_factory=utc_now)
+
+    def __post_init__(self) -> None:
+        ensure_not_blank(self.stable_section_key, "stable_section_key")
+        ensure_not_blank(self.provider, "provider")
+        ensure_not_blank(self.model_name, "model_name")
+        ensure_not_blank(self.embedding_input_hash, "embedding_input_hash")
+        ensure_not_blank(self.content, "content")
+        ensure_timezone_aware(self.created_at, "created_at")
+        ensure_timezone_aware(self.updated_at, "updated_at")
+
+        if self.chunk_index < 0:
+            raise ValueError("chunk_index must not be negative")
+
+        if not self.heading_context:
+            raise ValueError("heading_context must not be empty")
+
+        if self.dimensions < 1:
+            raise ValueError("dimensions must be greater than or equal to 1")
+
+        if len(self.embedding_vector) != self.dimensions:
+            raise ValueError("embedding_vector length must match dimensions")
+
+    def update_current_projection(
+        self,
+        *,
+        document_version_id: UUID,
+        section_version_id: UUID,
+        chunk_version_id: UUID,
+        embedding_record_id: UUID,
+        embedding_input_hash: str,
+        content: str,
+        heading_context: tuple[str, ...],
+        embedding_vector: tuple[float, ...],
+        dimensions: int,
+        updated_at: datetime | None = None,
+    ) -> None:
+        ensure_not_blank(embedding_input_hash, "embedding_input_hash")
+        ensure_not_blank(content, "content")
+
+        if not heading_context:
+            raise ValueError("heading_context must not be empty")
+
+        if dimensions < 1:
+            raise ValueError("dimensions must be greater than or equal to 1")
+
+        if len(embedding_vector) != dimensions:
+            raise ValueError("embedding_vector length must match dimensions")
+
+        self.document_version_id = document_version_id
+        self.section_version_id = section_version_id
+        self.chunk_version_id = chunk_version_id
+        self.embedding_record_id = embedding_record_id
+        self.embedding_input_hash = embedding_input_hash
+        self.content = content
+        self.heading_context = heading_context
+        self.embedding_vector = embedding_vector
+        self.dimensions = dimensions
+        self.is_active = True
+        self.updated_at = updated_at or utc_now()
+
+    def deactivate(self, *, updated_at: datetime | None = None) -> None:
+        self.is_active = False
+        self.updated_at = updated_at or utc_now()
+
+
+@dataclass(slots=True)
 class IngestionRun:
     id: UUID
     source_system: SourceSystem
