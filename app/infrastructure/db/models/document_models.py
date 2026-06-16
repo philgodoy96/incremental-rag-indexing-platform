@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -18,6 +19,7 @@ class IngestionRunModel(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     documents_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     documents_changed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    sections_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error_message: Mapped[str | None] = mapped_column(Text)
 
 
@@ -82,4 +84,39 @@ class DocumentVersionModel(Base):
         ForeignKey("ingestion_runs.id", ondelete="RESTRICT"),
         nullable=False,
     )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class SectionVersionModel(Base):
+    __tablename__ = "section_versions"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "document_version_id",
+            "stable_section_key",
+            name="uq_section_versions_document_version_id_stable_section_key",
+        ),
+        UniqueConstraint(
+            "document_version_id",
+            "ordinal",
+            name="uq_section_versions_document_version_id_ordinal",
+        ),
+        Index("ix_section_versions_document_version_id", "document_version_id"),
+        Index("ix_section_versions_stable_section_key", "stable_section_key"),
+        Index("ix_section_versions_section_checksum", "section_checksum"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
+    document_version_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("document_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    stable_section_key: Mapped[str] = mapped_column(String(1024), nullable=False)
+    heading_path: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    heading_level: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    section_checksum: Mapped[str] = mapped_column(String(128), nullable=False)
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

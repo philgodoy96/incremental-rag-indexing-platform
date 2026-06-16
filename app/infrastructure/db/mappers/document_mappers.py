@@ -1,4 +1,9 @@
-from app.domain.documents.entities import DocumentVersion, IngestionRun, SourceDocument
+from app.domain.documents.entities import (
+    DocumentVersion,
+    IngestionRun,
+    SectionVersion,
+    SourceDocument,
+)
 from app.domain.documents.enums import (
     IngestionRunStatus,
     SourceDocumentStatus,
@@ -7,6 +12,7 @@ from app.domain.documents.enums import (
 from app.infrastructure.db.models.document_models import (
     DocumentVersionModel,
     IngestionRunModel,
+    SectionVersionModel,
     SourceDocumentModel,
 )
 
@@ -71,6 +77,38 @@ def document_version_from_model(model: DocumentVersionModel) -> DocumentVersion:
     )
 
 
+def section_version_to_model(entity: SectionVersion) -> SectionVersionModel:
+    model = SectionVersionModel()
+
+    model.id = entity.id
+    model.document_version_id = entity.document_version_id
+    model.stable_section_key = entity.stable_section_key
+    model.heading_path = list(entity.heading_path)
+    model.heading_level = entity.heading_level
+    model.title = entity.title
+    model.body = entity.body
+    model.section_checksum = entity.section_checksum
+    model.ordinal = entity.ordinal
+    model.created_at = entity.created_at
+
+    return model
+
+
+def section_version_from_model(model: SectionVersionModel) -> SectionVersion:
+    return SectionVersion(
+        id=model.id,
+        document_version_id=model.document_version_id,
+        stable_section_key=model.stable_section_key,
+        heading_path=tuple(model.heading_path),
+        heading_level=model.heading_level,
+        title=model.title,
+        body=model.body,
+        section_checksum=model.section_checksum,
+        ordinal=model.ordinal,
+        created_at=model.created_at,
+    )
+
+
 def ingestion_run_to_model(entity: IngestionRun) -> IngestionRunModel:
     model = IngestionRunModel()
 
@@ -81,6 +119,7 @@ def ingestion_run_to_model(entity: IngestionRun) -> IngestionRunModel:
     model.completed_at = entity.completed_at
     model.documents_seen = entity.documents_seen
     model.documents_changed = entity.documents_changed
+    model.sections_created = entity.sections_created
     model.error_message = entity.error_message
 
     return model
@@ -95,5 +134,6 @@ def ingestion_run_from_model(model: IngestionRunModel) -> IngestionRun:
         completed_at=model.completed_at,
         documents_seen=model.documents_seen,
         documents_changed=model.documents_changed,
+        sections_created=model.sections_created,
         error_message=model.error_message,
     )

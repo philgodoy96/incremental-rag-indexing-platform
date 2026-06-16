@@ -3,11 +3,17 @@ from uuid import UUID
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
-from app.domain.documents.entities import DocumentVersion, IngestionRun, SourceDocument
+from app.domain.documents.entities import (
+    DocumentVersion,
+    IngestionRun,
+    SectionVersion,
+    SourceDocument,
+)
 from app.domain.documents.enums import SourceSystem
 from app.domain.documents.repositories import (
     DocumentVersionRepository,
     IngestionRunRepository,
+    SectionVersionRepository,
     SourceDocumentRepository,
 )
 from app.infrastructure.db.mappers.document_mappers import (
@@ -15,12 +21,15 @@ from app.infrastructure.db.mappers.document_mappers import (
     document_version_to_model,
     ingestion_run_from_model,
     ingestion_run_to_model,
+    section_version_from_model,
+    section_version_to_model,
     source_document_from_model,
     source_document_to_model,
 )
 from app.infrastructure.db.models.document_models import (
     DocumentVersionModel,
     IngestionRunModel,
+    SectionVersionModel,
     SourceDocumentModel,
 )
 
@@ -89,6 +98,30 @@ class SqlAlchemyDocumentVersionRepository(DocumentVersionRepository):
 
     def save(self, document_version: DocumentVersion) -> None:
         self._session.merge(document_version_to_model(document_version))
+
+
+class SqlAlchemySectionVersionRepository(SectionVersionRepository):
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def list_for_document_version(
+        self,
+        document_version_id: UUID,
+    ) -> list[SectionVersion]:
+        statement: Select[tuple[SectionVersionModel]] = (
+            select(SectionVersionModel)
+            .where(SectionVersionModel.document_version_id == document_version_id)
+            .order_by(SectionVersionModel.ordinal.asc())
+        )
+
+        return [
+            section_version_from_model(model)
+            for model in self._session.execute(statement).scalars().all()
+        ]
+
+    def save_many(self, section_versions: list[SectionVersion]) -> None:
+        for section_version in section_versions:
+            self._session.merge(section_version_to_model(section_version))
 
 
 class SqlAlchemyIngestionRunRepository(IngestionRunRepository):

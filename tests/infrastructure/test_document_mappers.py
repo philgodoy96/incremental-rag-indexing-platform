@@ -1,12 +1,19 @@
 from uuid import uuid4
 
-from app.domain.documents.entities import DocumentVersion, IngestionRun, SourceDocument
+from app.domain.documents.entities import (
+    DocumentVersion,
+    IngestionRun,
+    SectionVersion,
+    SourceDocument,
+)
 from app.domain.documents.enums import IngestionRunStatus, SourceSystem
 from app.infrastructure.db.mappers.document_mappers import (
     document_version_from_model,
     document_version_to_model,
     ingestion_run_from_model,
     ingestion_run_to_model,
+    section_version_from_model,
+    section_version_to_model,
     source_document_from_model,
     source_document_to_model,
 )
@@ -45,14 +52,38 @@ def test_document_version_mapper_round_trips_domain_entity() -> None:
     assert mapped_version == document_version
 
 
+def test_section_version_mapper_round_trips_domain_entity() -> None:
+    section_version = SectionVersion(
+        id=uuid4(),
+        document_version_id=uuid4(),
+        stable_section_key="project-atlas-status/summary",
+        heading_path=("Project Atlas Status", "Summary"),
+        heading_level=2,
+        title="Summary",
+        body="Project Atlas is at risk.",
+        section_checksum="section-checksum",
+        ordinal=0,
+    )
+
+    model = section_version_to_model(section_version)
+    mapped_section = section_version_from_model(model)
+
+    assert mapped_section == section_version
+
+
 def test_ingestion_run_mapper_round_trips_domain_entity() -> None:
     ingestion_run = IngestionRun.start(
         source_system=SourceSystem.LOCAL_SEED_DOCUMENTS,
     )
-    ingestion_run.mark_completed(documents_seen=3, documents_changed=2)
+    ingestion_run.mark_completed(
+        documents_seen=3,
+        documents_changed=2,
+        sections_created=8,
+    )
 
     model = ingestion_run_to_model(ingestion_run)
     mapped_run = ingestion_run_from_model(model)
 
     assert mapped_run == ingestion_run
     assert mapped_run.status == IngestionRunStatus.COMPLETED
+    assert mapped_run.sections_created == 8

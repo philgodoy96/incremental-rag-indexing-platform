@@ -3,6 +3,8 @@ from app.infrastructure.db.mappers.document_mappers import (
     document_version_to_model,
     ingestion_run_from_model,
     ingestion_run_to_model,
+    section_version_from_model,
+    section_version_to_model,
     source_document_from_model,
     source_document_to_model,
 )
@@ -12,6 +14,8 @@ __all__ = [
     "document_version_to_model",
     "ingestion_run_from_model",
     "ingestion_run_to_model",
+    "section_version_from_model",
+    "section_version_to_model",
     "source_document_from_model",
     "source_document_to_model",
 ]
