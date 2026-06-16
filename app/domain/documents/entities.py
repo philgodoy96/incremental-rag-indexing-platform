@@ -344,6 +344,9 @@ class IngestionRun:
     chunks_created: int = 0
     embeddings_created: int = 0
     embeddings_reused: int = 0
+    vector_entries_created: int = 0
+    vector_entries_updated: int = 0
+    vector_entries_deactivated: int = 0
     embedding_tokens_processed: int = 0
     estimated_embedding_cost_usd_micros: int = 0
     error_message: str | None = None
@@ -371,6 +374,15 @@ class IngestionRun:
 
         if self.embeddings_reused < 0:
             raise ValueError("embeddings_reused must not be negative")
+        
+        if self.vector_entries_created < 0:
+            raise ValueError("vector_entries_created must not be negative")
+
+        if self.vector_entries_updated < 0:
+            raise ValueError("vector_entries_updated must not be negative")
+
+        if self.vector_entries_deactivated < 0:
+            raise ValueError("vector_entries_deactivated must not be negative")
 
         if self.embedding_tokens_processed < 0:
             raise ValueError("embedding_tokens_processed must not be negative")
@@ -399,6 +411,9 @@ class IngestionRun:
         chunks_created: int = 0,
         embeddings_created: int = 0,
         embeddings_reused: int = 0,
+        vector_entries_created: int = 0,
+        vector_entries_updated: int = 0,
+        vector_entries_deactivated: int = 0,
         embedding_tokens_processed: int = 0,
         estimated_embedding_cost_usd_micros: int = 0,
         completed_at: datetime | None = None,
@@ -412,6 +427,9 @@ class IngestionRun:
         self.chunks_created = chunks_created
         self.embeddings_created = embeddings_created
         self.embeddings_reused = embeddings_reused
+        self.vector_entries_created = vector_entries_created
+        self.vector_entries_updated = vector_entries_updated
+        self.vector_entries_deactivated = vector_entries_deactivated
         self.embedding_tokens_processed = embedding_tokens_processed
         self.estimated_embedding_cost_usd_micros = estimated_embedding_cost_usd_micros
         self.completed_at = completion_time

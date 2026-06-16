@@ -21,6 +21,9 @@ from app.providers.fake_embedding_provider import FakeEmbeddingProvider
 class InMemoryEmbeddingRecordRepository(EmbeddingRecordRepository):
     def __init__(self) -> None:
         self.embedding_records: dict[UUID, EmbeddingRecord] = {}
+    
+    def get_by_id(self, embedding_record_id: UUID) -> EmbeddingRecord | None:
+        return self.embedding_records.get(embedding_record_id)
 
     def get_by_chunk_identity(
         self,

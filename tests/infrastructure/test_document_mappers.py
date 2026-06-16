@@ -189,6 +189,9 @@ def test_ingestion_run_mapper_round_trips_domain_entity() -> None:
         chunks_created=8,
         embeddings_created=6,
         embeddings_reused=2,
+        vector_entries_created=4,
+        vector_entries_updated=2,
+        vector_entries_deactivated=1,
         embedding_tokens_processed=300,
         estimated_embedding_cost_usd_micros=0,
     )
@@ -200,4 +203,7 @@ def test_ingestion_run_mapper_round_trips_domain_entity() -> None:
     assert mapped_run.status == IngestionRunStatus.COMPLETED
     assert mapped_run.embeddings_created == 6
     assert mapped_run.embeddings_reused == 2
+    assert mapped_run.vector_entries_created == 4
+    assert mapped_run.vector_entries_updated == 2
+    assert mapped_run.vector_entries_deactivated == 1
     assert mapped_run.embedding_tokens_processed == 300

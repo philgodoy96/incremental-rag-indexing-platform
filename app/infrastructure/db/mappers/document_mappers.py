@@ -303,6 +303,9 @@ def ingestion_run_to_model(entity: IngestionRun) -> IngestionRunModel:
     model.chunks_created = entity.chunks_created
     model.embeddings_created = entity.embeddings_created
     model.embeddings_reused = entity.embeddings_reused
+    model.vector_entries_created = entity.vector_entries_created
+    model.vector_entries_updated = entity.vector_entries_updated
+    model.vector_entries_deactivated = entity.vector_entries_deactivated
     model.embedding_tokens_processed = entity.embedding_tokens_processed
     model.estimated_embedding_cost_usd_micros = (
         entity.estimated_embedding_cost_usd_micros
@@ -325,6 +328,9 @@ def ingestion_run_from_model(model: IngestionRunModel) -> IngestionRun:
         chunks_created=model.chunks_created,
         embeddings_created=model.embeddings_created,
         embeddings_reused=model.embeddings_reused,
+        vector_entries_created=model.vector_entries_created,
+        vector_entries_updated=model.vector_entries_updated,
+        vector_entries_deactivated=model.vector_entries_deactivated,
         embedding_tokens_processed=model.embedding_tokens_processed,
         estimated_embedding_cost_usd_micros=model.estimated_embedding_cost_usd_micros,
         error_message=model.error_message,

@@ -9,6 +9,7 @@ from app.domain.documents.repositories import (
     IngestionRunRepository,
     SectionVersionRepository,
     SourceDocumentRepository,
+    VectorIndexEntryRepository,
 )
 from app.infrastructure.repositories import (
     SqlAlchemyChunkEmbeddingLinkRepository,
@@ -19,6 +20,7 @@ from app.infrastructure.repositories import (
     SqlAlchemyIngestionRunRepository,
     SqlAlchemySectionVersionRepository,
     SqlAlchemySourceDocumentRepository,
+    SqlAlchemyVectorIndexEntryRepository,
 )
 
 
@@ -43,6 +45,9 @@ class SqlAlchemyDocumentIngestionTransaction:
         )
         self.chunk_embedding_links: ChunkEmbeddingLinkRepository = (
             SqlAlchemyChunkEmbeddingLinkRepository(session)
+        )
+        self.vector_index_entries: VectorIndexEntryRepository = (
+            SqlAlchemyVectorIndexEntryRepository(session)
         )
         self.embedding_cost_records: EmbeddingCostRecordRepository = (
             SqlAlchemyEmbeddingCostRecordRepository(session)

@@ -14,6 +14,7 @@ from app.domain.documents.entities import (
     IngestionRun,
     SectionVersion,
     SourceDocument,
+    VectorIndexEntry,
 )
 from app.domain.documents.enums import SourceSystem
 from app.domain.documents.repositories import (
@@ -25,6 +26,7 @@ from app.domain.documents.repositories import (
     IngestionRunRepository,
     SectionVersionRepository,
     SourceDocumentRepository,
+    VectorIndexEntryRepository,
 )
 
 
@@ -127,6 +129,9 @@ class InMemoryChunkVersionRepository(ChunkVersionRepository):
 class InMemoryEmbeddingRecordRepository(EmbeddingRecordRepository):
     def __init__(self) -> None:
         self.embedding_records: dict[UUID, EmbeddingRecord] = {}
+    
+    def get_by_id(self, embedding_record_id: UUID) -> EmbeddingRecord | None:
+        return self.embedding_records.get(embedding_record_id)
 
     def get_by_chunk_identity(
         self,
@@ -207,6 +212,49 @@ class InMemoryIngestionRunRepository(IngestionRunRepository):
         self.ingestion_runs[ingestion_run.id] = ingestion_run
 
 
+class InMemoryVectorIndexEntryRepository(VectorIndexEntryRepository):
+    def __init__(self) -> None:
+        self.entries: dict[UUID, VectorIndexEntry] = {}
+
+    def get_by_logical_identity(
+        self,
+        *,
+        source_document_id: UUID,
+        stable_section_key: str,
+        chunk_index: int,
+        provider: str,
+        model_name: str,
+    ) -> VectorIndexEntry | None:
+        for entry in self.entries.values():
+            if (
+                entry.source_document_id == source_document_id
+                and entry.stable_section_key == stable_section_key
+                and entry.chunk_index == chunk_index
+                and entry.provider == provider
+                and entry.model_name == model_name
+            ):
+                return entry
+
+        return None
+
+    def list_active_for_source_document(
+        self,
+        source_document_id: UUID,
+    ) -> list[VectorIndexEntry]:
+        return [
+            entry
+            for entry in self.entries.values()
+            if entry.source_document_id == source_document_id and entry.is_active
+        ]
+
+    def save(self, entry: VectorIndexEntry) -> None:
+        self.entries[entry.id] = entry
+
+    def save_many(self, entries: list[VectorIndexEntry]) -> None:
+        for entry in entries:
+            self.save(entry)
+
+
 class InMemoryDocumentIngestionTransaction:
     def __init__(self) -> None:
         self.source_document_repository = InMemorySourceDocumentRepository()
@@ -217,6 +265,7 @@ class InMemoryDocumentIngestionTransaction:
         self.chunk_embedding_link_repository = InMemoryChunkEmbeddingLinkRepository()
         self.embedding_cost_record_repository = InMemoryEmbeddingCostRecordRepository()
         self.ingestion_run_repository = InMemoryIngestionRunRepository()
+        self.vector_index_entry_repository = InMemoryVectorIndexEntryRepository()
 
         self.source_documents: SourceDocumentRepository = self.source_document_repository
         self.document_versions: DocumentVersionRepository = self.document_version_repository
@@ -232,6 +281,9 @@ class InMemoryDocumentIngestionTransaction:
             self.embedding_cost_record_repository
         )
         self.ingestion_runs: IngestionRunRepository = self.ingestion_run_repository
+        self.vector_index_entries: VectorIndexEntryRepository = (
+            self.vector_index_entry_repository
+        )
 
         self.commit_count = 0
         self.rollback_count = 0

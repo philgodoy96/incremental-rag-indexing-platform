@@ -24,6 +24,13 @@ class IngestionRunModel(Base):
     chunks_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     embeddings_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     embeddings_reused: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    vector_entries_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    vector_entries_updated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    vector_entries_deactivated: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
     embedding_tokens_processed: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
