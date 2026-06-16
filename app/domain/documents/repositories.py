@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from uuid import UUID
 
 from app.domain.documents.entities import (
+    ChunkVersion,
     DocumentVersion,
     IngestionRun,
     SectionVersion,
@@ -56,6 +57,19 @@ class SectionVersionRepository(ABC):
 
     @abstractmethod
     def save_many(self, section_versions: list[SectionVersion]) -> None:
+        raise NotImplementedError
+
+
+class ChunkVersionRepository(ABC):
+    @abstractmethod
+    def list_for_section_version(
+        self,
+        section_version_id: UUID,
+    ) -> list[ChunkVersion]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def save_many(self, chunk_versions: list[ChunkVersion]) -> None:
         raise NotImplementedError
 
 

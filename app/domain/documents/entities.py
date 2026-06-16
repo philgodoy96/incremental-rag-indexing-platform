@@ -1,4 +1,4 @@
-﻿from dataclasses import dataclass, field
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -152,6 +152,38 @@ class SectionVersion:
             raise ValueError("ordinal must not be negative")
 
 
+@dataclass(frozen=True, slots=True)
+class ChunkVersion:
+    id: UUID
+    section_version_id: UUID
+    chunk_index: int
+    content: str
+    heading_context: tuple[str, ...]
+    chunk_hash: str
+    embedding_input_hash: str
+    token_estimate: int
+    risk_flags: tuple[str, ...] = field(default_factory=tuple)
+    created_at: datetime = field(default_factory=utc_now)
+
+    def __post_init__(self) -> None:
+        ensure_not_blank(self.content, "content")
+        ensure_not_blank(self.chunk_hash, "chunk_hash")
+        ensure_not_blank(self.embedding_input_hash, "embedding_input_hash")
+        ensure_timezone_aware(self.created_at, "created_at")
+
+        if self.chunk_index < 0:
+            raise ValueError("chunk_index must not be negative")
+
+        if not self.heading_context:
+            raise ValueError("heading_context must not be empty")
+
+        if self.token_estimate < 1:
+            raise ValueError("token_estimate must be greater than or equal to 1")
+
+        for risk_flag in self.risk_flags:
+            ensure_not_blank(risk_flag, "risk_flag")
+
+
 @dataclass(slots=True)
 class IngestionRun:
     id: UUID
@@ -162,6 +194,7 @@ class IngestionRun:
     documents_seen: int = 0
     documents_changed: int = 0
     sections_created: int = 0
+    chunks_created: int = 0
     error_message: str | None = None
 
     def __post_init__(self) -> None:
@@ -178,6 +211,9 @@ class IngestionRun:
 
         if self.sections_created < 0:
             raise ValueError("sections_created must not be negative")
+
+        if self.chunks_created < 0:
+            raise ValueError("chunks_created must not be negative")
 
         if self.documents_changed > self.documents_seen:
             raise ValueError("documents_changed cannot exceed documents_seen")
@@ -197,6 +233,7 @@ class IngestionRun:
         documents_seen: int,
         documents_changed: int,
         sections_created: int = 0,
+        chunks_created: int = 0,
         completed_at: datetime | None = None,
     ) -> None:
         completion_time = completed_at or utc_now()
@@ -205,6 +242,7 @@ class IngestionRun:
         self.documents_seen = documents_seen
         self.documents_changed = documents_changed
         self.sections_created = sections_created
+        self.chunks_created = chunks_created
         self.completed_at = completion_time
 
         self.__post_init__()

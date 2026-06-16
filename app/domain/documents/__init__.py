@@ -1,4 +1,5 @@
 from app.domain.documents.entities import (
+    ChunkVersion,
     DocumentVersion,
     IngestionRun,
     SectionVersion,
@@ -12,6 +13,7 @@ from app.domain.documents.enums import (
 from app.domain.documents.source_candidates import SourceDocumentCandidate
 
 __all__ = [
+    "ChunkVersion",
     "DocumentVersion",
     "IngestionRun",
     "IngestionRunStatus",
