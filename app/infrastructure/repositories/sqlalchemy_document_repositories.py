@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from app.domain.documents.entities import (
     ChunkVersion,
     DocumentVersion,
+    EmbeddingCostRecord,
+    EmbeddingRecord,
     IngestionRun,
     SectionVersion,
     SourceDocument,
@@ -14,6 +16,8 @@ from app.domain.documents.enums import SourceSystem
 from app.domain.documents.repositories import (
     ChunkVersionRepository,
     DocumentVersionRepository,
+    EmbeddingCostRecordRepository,
+    EmbeddingRecordRepository,
     IngestionRunRepository,
     SectionVersionRepository,
     SourceDocumentRepository,
@@ -23,6 +27,9 @@ from app.infrastructure.db.mappers.document_mappers import (
     chunk_version_to_model,
     document_version_from_model,
     document_version_to_model,
+    embedding_cost_record_to_model,
+    embedding_record_from_model,
+    embedding_record_to_model,
     ingestion_run_from_model,
     ingestion_run_to_model,
     section_version_from_model,
@@ -33,6 +40,7 @@ from app.infrastructure.db.mappers.document_mappers import (
 from app.infrastructure.db.models.document_models import (
     ChunkVersionModel,
     DocumentVersionModel,
+    EmbeddingRecordModel,
     IngestionRunModel,
     SectionVersionModel,
     SourceDocumentModel,
@@ -151,6 +159,47 @@ class SqlAlchemyChunkVersionRepository(ChunkVersionRepository):
     def save_many(self, chunk_versions: list[ChunkVersion]) -> None:
         for chunk_version in chunk_versions:
             self._session.merge(chunk_version_to_model(chunk_version))
+
+
+class SqlAlchemyEmbeddingRecordRepository(EmbeddingRecordRepository):
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def get_by_chunk_identity(
+        self,
+        *,
+        chunk_version_id: UUID,
+        provider: str,
+        model_name: str,
+        embedding_input_hash: str,
+    ) -> EmbeddingRecord | None:
+        statement: Select[tuple[EmbeddingRecordModel]] = select(
+            EmbeddingRecordModel,
+        ).where(
+            EmbeddingRecordModel.chunk_version_id == chunk_version_id,
+            EmbeddingRecordModel.provider == provider,
+            EmbeddingRecordModel.model_name == model_name,
+            EmbeddingRecordModel.embedding_input_hash == embedding_input_hash,
+        )
+        model = self._session.execute(statement).scalar_one_or_none()
+
+        if model is None:
+            return None
+
+        return embedding_record_from_model(model)
+
+    def save_many(self, embedding_records: list[EmbeddingRecord]) -> None:
+        for embedding_record in embedding_records:
+            self._session.merge(embedding_record_to_model(embedding_record))
+
+
+class SqlAlchemyEmbeddingCostRecordRepository(EmbeddingCostRecordRepository):
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def save_many(self, cost_records: list[EmbeddingCostRecord]) -> None:
+        for cost_record in cost_records:
+            self._session.merge(embedding_cost_record_to_model(cost_record))
 
 
 class SqlAlchemyIngestionRunRepository(IngestionRunRepository):
