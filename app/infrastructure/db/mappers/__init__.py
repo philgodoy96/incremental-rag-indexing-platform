@@ -1,4 +1,6 @@
 from app.infrastructure.db.mappers.document_mappers import (
+    chunk_embedding_link_from_model,
+    chunk_embedding_link_to_model,
     chunk_version_from_model,
     chunk_version_to_model,
     document_version_from_model,
@@ -16,6 +18,8 @@ from app.infrastructure.db.mappers.document_mappers import (
 )
 
 __all__ = [
+    "chunk_embedding_link_from_model",
+    "chunk_embedding_link_to_model",
     "chunk_version_from_model",
     "chunk_version_to_model",
     "document_version_from_model",

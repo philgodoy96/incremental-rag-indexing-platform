@@ -22,6 +22,7 @@ class IngestionRunModel(Base):
     sections_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     chunks_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     embeddings_created: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    embeddings_reused: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     embedding_tokens_processed: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
@@ -192,6 +193,31 @@ class EmbeddingRecordModel(Base):
     embedding_vector: Mapped[list[float]] = mapped_column(JSONB, nullable=False)
     dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
     input_token_estimate: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ChunkEmbeddingLinkModel(Base):
+    __tablename__ = "chunk_embedding_links"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "chunk_version_id",
+            name="uq_chunk_embedding_links_chunk_version_id",
+        ),
+        Index("ix_chunk_embedding_links_embedding_record_id", "embedding_record_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
+    chunk_version_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("chunk_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    embedding_record_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("embedding_records.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 

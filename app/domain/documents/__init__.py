@@ -1,4 +1,5 @@
 from app.domain.documents.entities import (
+    ChunkEmbeddingLink,
     ChunkVersion,
     DocumentVersion,
     EmbeddingCostRecord,
@@ -15,6 +16,7 @@ from app.domain.documents.enums import (
 from app.domain.documents.source_candidates import SourceDocumentCandidate
 
 __all__ = [
+    "ChunkEmbeddingLink",
     "ChunkVersion",
     "DocumentVersion",
     "EmbeddingCostRecord",

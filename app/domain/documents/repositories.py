@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from uuid import UUID
 
 from app.domain.documents.entities import (
+    ChunkEmbeddingLink,
     ChunkVersion,
     DocumentVersion,
     EmbeddingCostRecord,
@@ -88,7 +89,30 @@ class EmbeddingRecordRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_by_embedding_identity(
+        self,
+        *,
+        provider: str,
+        model_name: str,
+        embedding_input_hash: str,
+    ) -> EmbeddingRecord | None:
+        raise NotImplementedError
+
+    @abstractmethod
     def save_many(self, embedding_records: list[EmbeddingRecord]) -> None:
+        raise NotImplementedError
+
+
+class ChunkEmbeddingLinkRepository(ABC):
+    @abstractmethod
+    def get_by_chunk_version_id(
+        self,
+        chunk_version_id: UUID,
+    ) -> ChunkEmbeddingLink | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def save_many(self, links: list[ChunkEmbeddingLink]) -> None:
         raise NotImplementedError
 
 

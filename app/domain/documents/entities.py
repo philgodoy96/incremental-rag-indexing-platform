@@ -213,6 +213,17 @@ class EmbeddingRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class ChunkEmbeddingLink:
+    id: UUID
+    chunk_version_id: UUID
+    embedding_record_id: UUID
+    created_at: datetime = field(default_factory=utc_now)
+
+    def __post_init__(self) -> None:
+        ensure_timezone_aware(self.created_at, "created_at")
+
+
+@dataclass(frozen=True, slots=True)
 class EmbeddingCostRecord:
     id: UUID
     ingestion_run_id: UUID
@@ -247,6 +258,7 @@ class IngestionRun:
     sections_created: int = 0
     chunks_created: int = 0
     embeddings_created: int = 0
+    embeddings_reused: int = 0
     embedding_tokens_processed: int = 0
     estimated_embedding_cost_usd_micros: int = 0
     error_message: str | None = None
@@ -271,6 +283,9 @@ class IngestionRun:
 
         if self.embeddings_created < 0:
             raise ValueError("embeddings_created must not be negative")
+
+        if self.embeddings_reused < 0:
+            raise ValueError("embeddings_reused must not be negative")
 
         if self.embedding_tokens_processed < 0:
             raise ValueError("embedding_tokens_processed must not be negative")
@@ -298,6 +313,7 @@ class IngestionRun:
         sections_created: int = 0,
         chunks_created: int = 0,
         embeddings_created: int = 0,
+        embeddings_reused: int = 0,
         embedding_tokens_processed: int = 0,
         estimated_embedding_cost_usd_micros: int = 0,
         completed_at: datetime | None = None,
@@ -310,6 +326,7 @@ class IngestionRun:
         self.sections_created = sections_created
         self.chunks_created = chunks_created
         self.embeddings_created = embeddings_created
+        self.embeddings_reused = embeddings_reused
         self.embedding_tokens_processed = embedding_tokens_processed
         self.estimated_embedding_cost_usd_micros = estimated_embedding_cost_usd_micros
         self.completed_at = completion_time

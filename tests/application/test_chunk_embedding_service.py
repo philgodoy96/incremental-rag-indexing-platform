@@ -37,6 +37,23 @@ class InMemoryEmbeddingRecordRepository(EmbeddingRecordRepository):
                 return record
 
         return None
+    
+    def get_by_embedding_identity(
+        self,
+        *,
+        provider: str,
+        model_name: str,
+        embedding_input_hash: str,
+    ) -> EmbeddingRecord | None:
+        for record in self.embedding_records.values():
+            if (
+                record.provider == provider
+                and record.model_name == model_name
+                and record.embedding_input_hash == embedding_input_hash
+            ):
+                return record
+
+        return None
 
     def save_many(self, embedding_records: list[EmbeddingRecord]) -> None:
         for embedding_record in embedding_records:
