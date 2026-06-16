@@ -174,6 +174,14 @@ class SqlAlchemyChunkVersionRepository(ChunkVersionRepository):
 class SqlAlchemyEmbeddingRecordRepository(EmbeddingRecordRepository):
     def __init__(self, session: Session) -> None:
         self._session = session
+    
+    def get_by_id(self, embedding_record_id: UUID) -> EmbeddingRecord | None:
+        model = self._session.get(EmbeddingRecordModel, embedding_record_id)
+
+        if model is None:
+            return None
+
+        return embedding_record_from_model(model)
 
     def get_by_chunk_identity(
         self,
@@ -197,6 +205,7 @@ class SqlAlchemyEmbeddingRecordRepository(EmbeddingRecordRepository):
             return None
 
         return embedding_record_from_model(model)
+    
 
     def get_by_embedding_identity(
         self,
@@ -276,7 +285,23 @@ class SqlAlchemyVectorIndexEntryRepository(VectorIndexEntryRepository):
         if model is None:
             return None
 
-        return vector_index_entry_from_model(model)
+        return vector_index_entry_from_model(model)   
+
+    def list_active_for_source_document(
+        self,
+        source_document_id: UUID,
+    ) -> list[VectorIndexEntry]:
+        statement: Select[tuple[VectorIndexEntryModel]] = select(
+            VectorIndexEntryModel,
+        ).where(
+            VectorIndexEntryModel.source_document_id == source_document_id,
+            VectorIndexEntryModel.is_active.is_(True),
+        )
+
+        return [
+            vector_index_entry_from_model(model)
+            for model in self._session.execute(statement).scalars().all()
+        ]
 
     def save(self, entry: VectorIndexEntry) -> None:
         self._session.merge(vector_index_entry_to_model(entry))

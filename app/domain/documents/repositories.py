@@ -79,6 +79,10 @@ class ChunkVersionRepository(ABC):
 
 class EmbeddingRecordRepository(ABC):
     @abstractmethod
+    def get_by_id(self, embedding_record_id: UUID) -> EmbeddingRecord | None:
+        raise NotImplementedError
+
+    @abstractmethod
     def get_by_chunk_identity(
         self,
         *,
@@ -128,6 +132,13 @@ class VectorIndexEntryRepository(ABC):
         provider: str,
         model_name: str,
     ) -> VectorIndexEntry | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_active_for_source_document(
+        self,
+        source_document_id: UUID,
+    ) -> list[VectorIndexEntry]:
         raise NotImplementedError
 
     @abstractmethod
