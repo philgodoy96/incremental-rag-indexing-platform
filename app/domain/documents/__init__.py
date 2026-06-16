@@ -7,6 +7,7 @@ from app.domain.documents.entities import (
     IngestionRun,
     SectionVersion,
     SourceDocument,
+    VectorIndexEntry,
 )
 from app.domain.documents.enums import (
     IngestionRunStatus,
@@ -28,4 +29,5 @@ __all__ = [
     "SourceDocumentCandidate",
     "SourceDocumentStatus",
     "SourceSystem",
+    "VectorIndexEntry",
 ]

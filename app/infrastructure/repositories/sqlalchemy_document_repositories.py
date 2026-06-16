@@ -12,6 +12,7 @@ from app.domain.documents.entities import (
     IngestionRun,
     SectionVersion,
     SourceDocument,
+    VectorIndexEntry,
 )
 from app.domain.documents.enums import SourceSystem
 from app.domain.documents.repositories import (
@@ -23,6 +24,7 @@ from app.domain.documents.repositories import (
     IngestionRunRepository,
     SectionVersionRepository,
     SourceDocumentRepository,
+    VectorIndexEntryRepository,
 )
 from app.infrastructure.db.mappers.document_mappers import (
     chunk_embedding_link_from_model,
@@ -40,6 +42,8 @@ from app.infrastructure.db.mappers.document_mappers import (
     section_version_to_model,
     source_document_from_model,
     source_document_to_model,
+    vector_index_entry_from_model,
+    vector_index_entry_to_model,
 )
 from app.infrastructure.db.models.document_models import (
     ChunkEmbeddingLinkModel,
@@ -49,6 +53,7 @@ from app.infrastructure.db.models.document_models import (
     IngestionRunModel,
     SectionVersionModel,
     SourceDocumentModel,
+    VectorIndexEntryModel,
 )
 
 
@@ -169,6 +174,14 @@ class SqlAlchemyChunkVersionRepository(ChunkVersionRepository):
 class SqlAlchemyEmbeddingRecordRepository(EmbeddingRecordRepository):
     def __init__(self, session: Session) -> None:
         self._session = session
+    
+    def get_by_id(self, embedding_record_id: UUID) -> EmbeddingRecord | None:
+        model = self._session.get(EmbeddingRecordModel, embedding_record_id)
+
+        if model is None:
+            return None
+
+        return embedding_record_from_model(model)
 
     def get_by_chunk_identity(
         self,
@@ -192,6 +205,7 @@ class SqlAlchemyEmbeddingRecordRepository(EmbeddingRecordRepository):
             return None
 
         return embedding_record_from_model(model)
+    
 
     def get_by_embedding_identity(
         self,
@@ -241,6 +255,60 @@ class SqlAlchemyChunkEmbeddingLinkRepository(ChunkEmbeddingLinkRepository):
     def save_many(self, links: list[ChunkEmbeddingLink]) -> None:
         for link in links:
             self._session.merge(chunk_embedding_link_to_model(link))
+
+
+class SqlAlchemyVectorIndexEntryRepository(VectorIndexEntryRepository):
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def get_by_logical_identity(
+        self,
+        *,
+        source_document_id: UUID,
+        stable_section_key: str,
+        chunk_index: int,
+        provider: str,
+        model_name: str,
+    ) -> VectorIndexEntry | None:
+        statement: Select[tuple[VectorIndexEntryModel]] = select(
+            VectorIndexEntryModel,
+        ).where(
+            VectorIndexEntryModel.source_document_id == source_document_id,
+            VectorIndexEntryModel.stable_section_key == stable_section_key,
+            VectorIndexEntryModel.chunk_index == chunk_index,
+            VectorIndexEntryModel.provider == provider,
+            VectorIndexEntryModel.model_name == model_name,
+        )
+
+        model = self._session.execute(statement).scalar_one_or_none()
+
+        if model is None:
+            return None
+
+        return vector_index_entry_from_model(model)   
+
+    def list_active_for_source_document(
+        self,
+        source_document_id: UUID,
+    ) -> list[VectorIndexEntry]:
+        statement: Select[tuple[VectorIndexEntryModel]] = select(
+            VectorIndexEntryModel,
+        ).where(
+            VectorIndexEntryModel.source_document_id == source_document_id,
+            VectorIndexEntryModel.is_active.is_(True),
+        )
+
+        return [
+            vector_index_entry_from_model(model)
+            for model in self._session.execute(statement).scalars().all()
+        ]
+
+    def save(self, entry: VectorIndexEntry) -> None:
+        self._session.merge(vector_index_entry_to_model(entry))
+
+    def save_many(self, entries: list[VectorIndexEntry]) -> None:
+        for entry in entries:
+            self.save(entry)
 
 
 class SqlAlchemyEmbeddingCostRecordRepository(EmbeddingCostRecordRepository):

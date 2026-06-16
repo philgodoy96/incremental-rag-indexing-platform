@@ -9,6 +9,7 @@ from app.domain.documents.repositories import (
     IngestionRunRepository,
     SectionVersionRepository,
     SourceDocumentRepository,
+    VectorIndexEntryRepository,
 )
 
 
@@ -21,6 +22,7 @@ class DocumentIngestionTransaction(Protocol):
     chunk_embedding_links: ChunkEmbeddingLinkRepository
     embedding_cost_records: EmbeddingCostRecordRepository
     ingestion_runs: IngestionRunRepository
+    vector_index_entries: VectorIndexEntryRepository
 
     def flush(self) -> None:
         raise NotImplementedError

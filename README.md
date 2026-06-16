@@ -200,6 +200,8 @@ Current status:
 - Fake deterministic embedding provider introduced
 - EmbeddingRecord and EmbeddingCostRecord persistence introduced
 - Cross-version embedding reuse introduced
+- Vector index current projection updates introduced
+- VectorIndexEntry persistence introduced
 - ChunkEmbeddingLink persistence introduced
 
 ## Documentation

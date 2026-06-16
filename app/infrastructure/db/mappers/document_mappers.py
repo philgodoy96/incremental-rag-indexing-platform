@@ -7,6 +7,7 @@ from app.domain.documents.entities import (
     IngestionRun,
     SectionVersion,
     SourceDocument,
+    VectorIndexEntry,
 )
 from app.domain.documents.enums import (
     IngestionRunStatus,
@@ -22,6 +23,7 @@ from app.infrastructure.db.models.document_models import (
     IngestionRunModel,
     SectionVersionModel,
     SourceDocumentModel,
+    VectorIndexEntryModel,
 )
 
 
@@ -203,6 +205,58 @@ def chunk_embedding_link_from_model(
     )
 
 
+def vector_index_entry_to_model(
+    entity: VectorIndexEntry,
+) -> VectorIndexEntryModel:
+    model = VectorIndexEntryModel()
+
+    model.id = entity.id
+    model.source_document_id = entity.source_document_id
+    model.document_version_id = entity.document_version_id
+    model.section_version_id = entity.section_version_id
+    model.chunk_version_id = entity.chunk_version_id
+    model.embedding_record_id = entity.embedding_record_id
+    model.stable_section_key = entity.stable_section_key
+    model.chunk_index = entity.chunk_index
+    model.provider = entity.provider
+    model.model_name = entity.model_name
+    model.embedding_input_hash = entity.embedding_input_hash
+    model.content = entity.content
+    model.heading_context = list(entity.heading_context)
+    model.embedding_vector = list(entity.embedding_vector)
+    model.dimensions = entity.dimensions
+    model.is_active = entity.is_active
+    model.created_at = entity.created_at
+    model.updated_at = entity.updated_at
+
+    return model
+
+
+def vector_index_entry_from_model(
+    model: VectorIndexEntryModel,
+) -> VectorIndexEntry:
+    return VectorIndexEntry(
+        id=model.id,
+        source_document_id=model.source_document_id,
+        document_version_id=model.document_version_id,
+        section_version_id=model.section_version_id,
+        chunk_version_id=model.chunk_version_id,
+        embedding_record_id=model.embedding_record_id,
+        stable_section_key=model.stable_section_key,
+        chunk_index=model.chunk_index,
+        provider=model.provider,
+        model_name=model.model_name,
+        embedding_input_hash=model.embedding_input_hash,
+        content=model.content,
+        heading_context=tuple(model.heading_context),
+        embedding_vector=tuple(model.embedding_vector),
+        dimensions=model.dimensions,
+        is_active=model.is_active,
+        created_at=model.created_at,
+        updated_at=model.updated_at,
+    )
+
+
 def embedding_cost_record_to_model(
     entity: EmbeddingCostRecord,
 ) -> EmbeddingCostRecordModel:
@@ -249,6 +303,9 @@ def ingestion_run_to_model(entity: IngestionRun) -> IngestionRunModel:
     model.chunks_created = entity.chunks_created
     model.embeddings_created = entity.embeddings_created
     model.embeddings_reused = entity.embeddings_reused
+    model.vector_entries_created = entity.vector_entries_created
+    model.vector_entries_updated = entity.vector_entries_updated
+    model.vector_entries_deactivated = entity.vector_entries_deactivated
     model.embedding_tokens_processed = entity.embedding_tokens_processed
     model.estimated_embedding_cost_usd_micros = (
         entity.estimated_embedding_cost_usd_micros
@@ -271,6 +328,9 @@ def ingestion_run_from_model(model: IngestionRunModel) -> IngestionRun:
         chunks_created=model.chunks_created,
         embeddings_created=model.embeddings_created,
         embeddings_reused=model.embeddings_reused,
+        vector_entries_created=model.vector_entries_created,
+        vector_entries_updated=model.vector_entries_updated,
+        vector_entries_deactivated=model.vector_entries_deactivated,
         embedding_tokens_processed=model.embedding_tokens_processed,
         estimated_embedding_cost_usd_micros=model.estimated_embedding_cost_usd_micros,
         error_message=model.error_message,

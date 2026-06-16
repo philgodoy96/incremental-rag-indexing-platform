@@ -9,6 +9,7 @@ from app.domain.documents.entities import (
     IngestionRun,
     SectionVersion,
     SourceDocument,
+    VectorIndexEntry,
 )
 from app.domain.documents.enums import IngestionRunStatus, SourceSystem
 from app.infrastructure.db.mappers.document_mappers import (
@@ -28,6 +29,8 @@ from app.infrastructure.db.mappers.document_mappers import (
     section_version_to_model,
     source_document_from_model,
     source_document_to_model,
+    vector_index_entry_from_model,
+    vector_index_entry_to_model,
 )
 
 
@@ -133,6 +136,31 @@ def test_chunk_embedding_link_mapper_round_trips_domain_entity() -> None:
     assert mapped_link == link
 
 
+def test_vector_index_entry_mapper_round_trips_domain_entity() -> None:
+    entry = VectorIndexEntry(
+        id=uuid4(),
+        source_document_id=uuid4(),
+        document_version_id=uuid4(),
+        section_version_id=uuid4(),
+        chunk_version_id=uuid4(),
+        embedding_record_id=uuid4(),
+        stable_section_key="project-atlas-status/summary",
+        chunk_index=0,
+        provider="fake",
+        model_name="fake-embedding-v1",
+        embedding_input_hash="embedding-input-hash",
+        content="Status: On Track",
+        heading_context=("Project Atlas Status", "Summary"),
+        embedding_vector=(0.1, 0.2, 0.3),
+        dimensions=3,
+    )
+
+    model = vector_index_entry_to_model(entry)
+    mapped_entry = vector_index_entry_from_model(model)
+
+    assert mapped_entry == entry
+
+
 def test_embedding_cost_record_mapper_round_trips_domain_entity() -> None:
     cost_record = EmbeddingCostRecord(
         id=uuid4(),
@@ -161,6 +189,9 @@ def test_ingestion_run_mapper_round_trips_domain_entity() -> None:
         chunks_created=8,
         embeddings_created=6,
         embeddings_reused=2,
+        vector_entries_created=4,
+        vector_entries_updated=2,
+        vector_entries_deactivated=1,
         embedding_tokens_processed=300,
         estimated_embedding_cost_usd_micros=0,
     )
@@ -172,4 +203,7 @@ def test_ingestion_run_mapper_round_trips_domain_entity() -> None:
     assert mapped_run.status == IngestionRunStatus.COMPLETED
     assert mapped_run.embeddings_created == 6
     assert mapped_run.embeddings_reused == 2
+    assert mapped_run.vector_entries_created == 4
+    assert mapped_run.vector_entries_updated == 2
+    assert mapped_run.vector_entries_deactivated == 1
     assert mapped_run.embedding_tokens_processed == 300

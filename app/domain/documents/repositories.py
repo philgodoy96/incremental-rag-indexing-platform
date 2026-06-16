@@ -10,6 +10,7 @@ from app.domain.documents.entities import (
     IngestionRun,
     SectionVersion,
     SourceDocument,
+    VectorIndexEntry,
 )
 from app.domain.documents.enums import SourceSystem
 
@@ -78,6 +79,10 @@ class ChunkVersionRepository(ABC):
 
 class EmbeddingRecordRepository(ABC):
     @abstractmethod
+    def get_by_id(self, embedding_record_id: UUID) -> EmbeddingRecord | None:
+        raise NotImplementedError
+
+    @abstractmethod
     def get_by_chunk_identity(
         self,
         *,
@@ -113,6 +118,35 @@ class ChunkEmbeddingLinkRepository(ABC):
 
     @abstractmethod
     def save_many(self, links: list[ChunkEmbeddingLink]) -> None:
+        raise NotImplementedError
+
+
+class VectorIndexEntryRepository(ABC):
+    @abstractmethod
+    def get_by_logical_identity(
+        self,
+        *,
+        source_document_id: UUID,
+        stable_section_key: str,
+        chunk_index: int,
+        provider: str,
+        model_name: str,
+    ) -> VectorIndexEntry | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_active_for_source_document(
+        self,
+        source_document_id: UUID,
+    ) -> list[VectorIndexEntry]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def save(self, entry: VectorIndexEntry) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def save_many(self, entries: list[VectorIndexEntry]) -> None:
         raise NotImplementedError
 
 
