@@ -195,6 +195,8 @@ Current status:
 - Initial seed documents committed
 - Markdown section extraction introduced
 - SectionVersion persistence introduced
+- Deterministic chunking introduced
+- ChunkVersion persistence introduced
 
 ## Documentation
 
