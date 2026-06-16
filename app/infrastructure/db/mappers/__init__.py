@@ -1,4 +1,6 @@
 from app.infrastructure.db.mappers.document_mappers import (
+    chunk_version_from_model,
+    chunk_version_to_model,
     document_version_from_model,
     document_version_to_model,
     ingestion_run_from_model,
@@ -10,6 +12,8 @@ from app.infrastructure.db.mappers.document_mappers import (
 )
 
 __all__ = [
+    "chunk_version_from_model",
+    "chunk_version_to_model",
     "document_version_from_model",
     "document_version_to_model",
     "ingestion_run_from_model",

@@ -4,6 +4,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from app.domain.documents.entities import (
+    ChunkVersion,
     DocumentVersion,
     IngestionRun,
     SectionVersion,
@@ -11,12 +12,15 @@ from app.domain.documents.entities import (
 )
 from app.domain.documents.enums import SourceSystem
 from app.domain.documents.repositories import (
+    ChunkVersionRepository,
     DocumentVersionRepository,
     IngestionRunRepository,
     SectionVersionRepository,
     SourceDocumentRepository,
 )
 from app.infrastructure.db.mappers.document_mappers import (
+    chunk_version_from_model,
+    chunk_version_to_model,
     document_version_from_model,
     document_version_to_model,
     ingestion_run_from_model,
@@ -27,6 +31,7 @@ from app.infrastructure.db.mappers.document_mappers import (
     source_document_to_model,
 )
 from app.infrastructure.db.models.document_models import (
+    ChunkVersionModel,
     DocumentVersionModel,
     IngestionRunModel,
     SectionVersionModel,
@@ -122,6 +127,30 @@ class SqlAlchemySectionVersionRepository(SectionVersionRepository):
     def save_many(self, section_versions: list[SectionVersion]) -> None:
         for section_version in section_versions:
             self._session.merge(section_version_to_model(section_version))
+
+
+class SqlAlchemyChunkVersionRepository(ChunkVersionRepository):
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def list_for_section_version(
+        self,
+        section_version_id: UUID,
+    ) -> list[ChunkVersion]:
+        statement: Select[tuple[ChunkVersionModel]] = (
+            select(ChunkVersionModel)
+            .where(ChunkVersionModel.section_version_id == section_version_id)
+            .order_by(ChunkVersionModel.chunk_index.asc())
+        )
+
+        return [
+            chunk_version_from_model(model)
+            for model in self._session.execute(statement).scalars().all()
+        ]
+
+    def save_many(self, chunk_versions: list[ChunkVersion]) -> None:
+        for chunk_version in chunk_versions:
+            self._session.merge(chunk_version_to_model(chunk_version))
 
 
 class SqlAlchemyIngestionRunRepository(IngestionRunRepository):

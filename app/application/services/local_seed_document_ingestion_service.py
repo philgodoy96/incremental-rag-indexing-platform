@@ -6,11 +6,17 @@ from uuid import UUID, uuid4
 from app.application.services.local_seed_document_discovery_service import (
     LocalSeedDocumentDiscoveryService,
 )
+from app.application.services.markdown_chunking_service import MarkdownChunkingService
 from app.application.services.markdown_section_extraction_service import (
     MarkdownSectionExtractionService,
 )
 from app.application.transactions import DocumentIngestionTransaction
-from app.domain.documents.entities import DocumentVersion, IngestionRun, SourceDocument
+from app.domain.documents.entities import (
+    DocumentVersion,
+    IngestionRun,
+    SectionVersion,
+    SourceDocument,
+)
 from app.domain.documents.enums import IngestionRunStatus, SourceSystem
 from app.domain.documents.source_candidates import SourceDocumentCandidate
 
@@ -31,6 +37,7 @@ class LocalSeedDocumentIngestionItem:
     version_number: int | None
     content_checksum: str
     sections_created: int
+    chunks_created: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +49,7 @@ class LocalSeedDocumentIngestionResult:
     documents_seen: int
     documents_changed: int
     sections_created: int
+    chunks_created: int
     documents: tuple[LocalSeedDocumentIngestionItem, ...]
 
 
@@ -51,6 +59,7 @@ class LocalSeedDocumentIngestionService:
     def __init__(self, source_path: Path) -> None:
         self._source_path = source_path
         self._section_extraction_service = MarkdownSectionExtractionService()
+        self._chunking_service = MarkdownChunkingService()
 
     def ingest(
         self,
@@ -67,6 +76,7 @@ class LocalSeedDocumentIngestionService:
 
             documents_changed = 0
             sections_created = 0
+            chunks_created = 0
             ingested_documents: list[LocalSeedDocumentIngestionItem] = []
 
             for candidate in discovery_result.documents:
@@ -83,12 +93,14 @@ class LocalSeedDocumentIngestionService:
                     documents_changed += 1
 
                 sections_created += item.sections_created
+                chunks_created += item.chunks_created
                 ingested_documents.append(item)
 
             run.mark_completed(
                 documents_seen=discovery_result.document_count,
                 documents_changed=documents_changed,
                 sections_created=sections_created,
+                chunks_created=chunks_created,
             )
             transaction.ingestion_runs.save(run)
             transaction.commit()
@@ -101,6 +113,7 @@ class LocalSeedDocumentIngestionService:
                 documents_seen=run.documents_seen,
                 documents_changed=run.documents_changed,
                 sections_created=run.sections_created,
+                chunks_created=run.chunks_created,
                 documents=tuple(ingested_documents),
             )
 
@@ -139,9 +152,13 @@ class LocalSeedDocumentIngestionService:
             transaction.document_versions.save(document_version)
             transaction.flush()
 
-            created_section_count = self._ensure_sections_for_document_version(
+            sections, created_section_count = self._ensure_sections_for_document_version(
                 document_version=document_version,
                 title=candidate.title,
+                transaction=transaction,
+            )
+            created_chunk_count = self._ensure_chunks_for_sections(
+                sections=sections,
                 transaction=transaction,
             )
 
@@ -157,6 +174,7 @@ class LocalSeedDocumentIngestionService:
                 version_number=document_version.version_number,
                 content_checksum=candidate.content_checksum,
                 sections_created=created_section_count,
+                chunks_created=created_chunk_count,
             )
 
         latest_version = transaction.document_versions.get_latest_for_source_document(
@@ -177,9 +195,13 @@ class LocalSeedDocumentIngestionService:
             latest_version is not None
             and latest_version.content_checksum == candidate.content_checksum
         ):
-            created_section_count = self._ensure_sections_for_document_version(
+            sections, created_section_count = self._ensure_sections_for_document_version(
                 document_version=latest_version,
                 title=candidate.title,
+                transaction=transaction,
+            )
+            created_chunk_count = self._ensure_chunks_for_sections(
+                sections=sections,
                 transaction=transaction,
             )
 
@@ -192,6 +214,7 @@ class LocalSeedDocumentIngestionService:
                 version_number=latest_version.version_number,
                 content_checksum=candidate.content_checksum,
                 sections_created=created_section_count,
+                chunks_created=created_chunk_count,
             )
 
         next_version_number = (
@@ -207,9 +230,13 @@ class LocalSeedDocumentIngestionService:
         transaction.document_versions.save(document_version)
         transaction.flush()
 
-        created_section_count = self._ensure_sections_for_document_version(
+        sections, created_section_count = self._ensure_sections_for_document_version(
             document_version=document_version,
             title=candidate.title,
+            transaction=transaction,
+        )
+        created_chunk_count = self._ensure_chunks_for_sections(
+            sections=sections,
             transaction=transaction,
         )
 
@@ -225,6 +252,7 @@ class LocalSeedDocumentIngestionService:
             version_number=document_version.version_number,
             content_checksum=candidate.content_checksum,
             sections_created=created_section_count,
+            chunks_created=created_chunk_count,
         )
 
     def _create_document_version(
@@ -251,13 +279,13 @@ class LocalSeedDocumentIngestionService:
         document_version: DocumentVersion,
         title: str,
         transaction: DocumentIngestionTransaction,
-    ) -> int:
+    ) -> tuple[list[SectionVersion], int]:
         existing_sections = transaction.section_versions.list_for_document_version(
             document_version.id,
         )
 
         if existing_sections:
-            return 0
+            return existing_sections, 0
 
         section_versions = self._section_extraction_service.create_section_versions(
             document_version_id=document_version.id,
@@ -268,4 +296,31 @@ class LocalSeedDocumentIngestionService:
         transaction.section_versions.save_many(section_versions)
         transaction.flush()
 
-        return len(section_versions)
+        return section_versions, len(section_versions)
+
+    def _ensure_chunks_for_sections(
+        self,
+        *,
+        sections: list[SectionVersion],
+        transaction: DocumentIngestionTransaction,
+    ) -> int:
+        chunks_created = 0
+
+        for section in sections:
+            existing_chunks = transaction.chunk_versions.list_for_section_version(
+                section.id,
+            )
+
+            if existing_chunks:
+                continue
+
+            chunk_versions = self._chunking_service.create_chunk_versions(
+                section_version=section,
+            )
+            transaction.chunk_versions.save_many(chunk_versions)
+            chunks_created += len(chunk_versions)
+
+        if chunks_created > 0:
+            transaction.flush()
+
+        return chunks_created
