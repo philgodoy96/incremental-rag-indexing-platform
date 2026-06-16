@@ -52,6 +52,7 @@ class LocalSeedDocumentIngestionService:
     ) -> LocalSeedDocumentIngestionResult:
         run = IngestionRun.start(source_system=SourceSystem.LOCAL_SEED_DOCUMENTS)
         transaction.ingestion_runs.save(run)
+        transaction.flush()
 
         try:
             discovery_result = LocalSeedDocumentDiscoveryService(
@@ -81,6 +82,7 @@ class LocalSeedDocumentIngestionService:
                 documents_changed=documents_changed,
             )
             transaction.ingestion_runs.save(run)
+            transaction.flush()
             transaction.commit()
 
             return LocalSeedDocumentIngestionResult(
@@ -117,6 +119,7 @@ class LocalSeedDocumentIngestionService:
                 title=candidate.title,
             )
             transaction.source_documents.save(source_document)
+            transaction.flush()
 
             document_version = self._create_document_version(
                 candidate=candidate,
@@ -125,9 +128,11 @@ class LocalSeedDocumentIngestionService:
                 run_id=run_id,
             )
             transaction.document_versions.save(document_version)
+            transaction.flush()
 
             source_document.mark_current_version(document_version.id)
             transaction.source_documents.save(source_document)
+            transaction.flush()
 
             return LocalSeedDocumentIngestionItem(
                 external_id=candidate.external_id,
@@ -176,6 +181,7 @@ class LocalSeedDocumentIngestionService:
             run_id=run_id,
         )
         transaction.document_versions.save(document_version)
+        transaction.flush()
 
         existing_document.mark_current_version(document_version.id)
         transaction.source_documents.save(existing_document)

@@ -87,8 +87,12 @@ class InMemoryDocumentIngestionTransaction:
         self.document_versions: DocumentVersionRepository = self.document_version_repository
         self.ingestion_runs: IngestionRunRepository = self.ingestion_run_repository
 
+        self.flush_count = 0
         self.commit_count = 0
         self.rollback_count = 0
+
+    def flush(self) -> None:
+        self.flush_count += 1
 
     def commit(self) -> None:
         self.commit_count += 1

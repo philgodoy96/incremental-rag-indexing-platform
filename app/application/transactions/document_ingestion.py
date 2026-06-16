@@ -12,6 +12,9 @@ class DocumentIngestionTransaction(Protocol):
     document_versions: DocumentVersionRepository
     ingestion_runs: IngestionRunRepository
 
+    def flush(self) -> None:
+        raise NotImplementedError
+
     def commit(self) -> None:
         raise NotImplementedError
 
