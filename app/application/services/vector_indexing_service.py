@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from app.application.transactions.document_ingestion import (
     DocumentIngestionTransaction,
@@ -98,6 +98,18 @@ class VectorIndexingService:
                     vector_entries_created += 1
                     continue
 
+                if self._entry_matches_current_projection(
+                    entry=existing_entry,
+                    document_version=document_version,
+                    section=section,
+                    chunk=chunk,
+                    embedding_record_id=embedding_record.id,
+                    embedding_input_hash=embedding_record.embedding_input_hash,
+                    embedding_vector=embedding_record.embedding_vector,
+                    dimensions=embedding_record.dimensions,
+                ):
+                    continue
+
                 existing_entry.update_current_projection(
                     document_version_id=document_version.id,
                     section_version_id=section.id,
@@ -155,3 +167,28 @@ class VectorIndexingService:
             deactivated_count += 1
 
         return deactivated_count
+
+    def _entry_matches_current_projection(
+        self,
+        *,
+        entry: VectorIndexEntry,
+        document_version: DocumentVersion,
+        section: SectionVersion,
+        chunk: ChunkVersion,
+        embedding_record_id: UUID,
+        embedding_input_hash: str,
+        embedding_vector: tuple[float, ...],
+        dimensions: int,
+    ) -> bool:
+        return (
+            entry.is_active
+            and entry.document_version_id == document_version.id
+            and entry.section_version_id == section.id
+            and entry.chunk_version_id == chunk.id
+            and entry.embedding_record_id == embedding_record_id
+            and entry.embedding_input_hash == embedding_input_hash
+            and entry.content == chunk.content
+            and entry.heading_context == chunk.heading_context
+            and entry.embedding_vector == embedding_vector
+            and entry.dimensions == dimensions
+        )

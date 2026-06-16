@@ -317,11 +317,15 @@ def test_local_seed_ingestion_creates_document_version_sections_chunks_and_embed
     assert result.chunks_created == 1
     assert result.embeddings_created == 1
     assert result.embeddings_reused == 0
+    assert result.vector_entries_created == result.chunks_created
+    assert result.vector_entries_updated == 0
+    assert result.vector_entries_deactivated == 0
     assert result.embedding_tokens_processed == 3
     assert result.estimated_embedding_cost_usd_micros == 0
     assert result.documents[0].action == LocalSeedDocumentIngestionAction.CREATED
     assert result.documents[0].embeddings_created == 1
     assert result.documents[0].embeddings_reused == 0
+    assert result.documents[0].vector_entries_created == result.documents[0].chunks_created
     assert result.documents[0].embedding_tokens_processed == 3
     assert result.documents[0].estimated_embedding_cost_usd_micros == 0
     assert len(transaction.source_document_repository.documents) == 1
@@ -355,6 +359,9 @@ def test_local_seed_ingestion_is_idempotent_for_unchanged_documents(
     assert second_result.chunks_created == 0
     assert second_result.embeddings_created == 0
     assert second_result.embeddings_reused == 0
+    assert second_result.vector_entries_created == 0
+    assert second_result.vector_entries_updated == 0
+    assert second_result.vector_entries_deactivated == 0
     assert second_result.embedding_tokens_processed == 0
     assert second_result.estimated_embedding_cost_usd_micros == 0
     assert second_result.documents[0].action == LocalSeedDocumentIngestionAction.UNCHANGED
@@ -389,16 +396,25 @@ def test_local_seed_ingestion_backfills_embeddings_for_existing_chunks(
     assert second_result.chunks_created == 0
     assert second_result.embeddings_created == 0
     assert second_result.embeddings_reused == 1
+    assert second_result.vector_entries_created == 0
+    assert second_result.vector_entries_updated == 0
+    assert second_result.vector_entries_deactivated == 0
     assert second_result.embedding_tokens_processed == 0
+
     assert second_result.documents[0].action == LocalSeedDocumentIngestionAction.UNCHANGED
     assert second_result.documents[0].embeddings_created == 0
     assert second_result.documents[0].embeddings_reused == 1
+    assert second_result.documents[0].vector_entries_created == 0
+    assert second_result.documents[0].vector_entries_updated == 0
+    assert second_result.documents[0].vector_entries_deactivated == 0
+
     assert len(transaction.document_version_repository.document_versions) == 1
     assert len(transaction.section_version_repository.section_versions) == 1
     assert len(transaction.chunk_version_repository.chunk_versions) == 1
     assert len(transaction.embedding_record_repository.embedding_records) == 1
     assert len(transaction.chunk_embedding_link_repository.links) == 1
     assert len(transaction.embedding_cost_record_repository.cost_records) == 0
+    assert len(transaction.vector_index_entry_repository.entries) == 1
 
 
 def test_ingestion_creates_new_version_artifacts_when_content_changes(
@@ -426,13 +442,24 @@ def test_ingestion_creates_new_version_artifacts_when_content_changes(
     assert second_result.sections_created == 1
     assert second_result.chunks_created == 1
     assert second_result.embeddings_created == 1
+    assert second_result.embeddings_reused == 0
+    assert second_result.vector_entries_created == 0
+    assert second_result.vector_entries_updated == 1
+    assert second_result.vector_entries_deactivated == 0
+
     assert second_result.documents[0].action == LocalSeedDocumentIngestionAction.VERSION_CREATED
     assert second_result.documents[0].version_number == 2
     assert second_result.documents[0].embeddings_created == 1
     assert second_result.documents[0].embeddings_reused == 0
+    assert second_result.documents[0].vector_entries_created == 0
+    assert second_result.documents[0].vector_entries_updated == 1
+    assert second_result.documents[0].vector_entries_deactivated == 0
+
     assert len(transaction.source_document_repository.documents) == 1
     assert len(transaction.document_version_repository.document_versions) == 2
     assert len(transaction.section_version_repository.section_versions) == 2
     assert len(transaction.chunk_version_repository.chunk_versions) == 2
     assert len(transaction.embedding_record_repository.embedding_records) == 2
+    assert len(transaction.chunk_embedding_link_repository.links) == 2
     assert len(transaction.embedding_cost_record_repository.cost_records) == 2
+    assert len(transaction.vector_index_entry_repository.entries) == 1

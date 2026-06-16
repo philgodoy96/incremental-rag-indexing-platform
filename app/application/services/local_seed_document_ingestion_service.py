@@ -11,6 +11,10 @@ from app.application.services.markdown_chunking_service import MarkdownChunkingS
 from app.application.services.markdown_section_extraction_service import (
     MarkdownSectionExtractionService,
 )
+from app.application.services.vector_indexing_service import (
+    SectionChunks,
+    VectorIndexingService,
+)
 from app.application.transactions import DocumentIngestionTransaction
 from app.domain.documents.entities import (
     ChunkVersion,
@@ -43,6 +47,9 @@ class LocalSeedDocumentIngestionItem:
     chunks_created: int
     embeddings_created: int
     embeddings_reused: int
+    vector_entries_created: int
+    vector_entries_updated: int
+    vector_entries_deactivated: int
     embedding_tokens_processed: int
     estimated_embedding_cost_usd_micros: int
 
@@ -59,6 +66,9 @@ class LocalSeedDocumentIngestionResult:
     chunks_created: int
     embeddings_created: int
     embeddings_reused: int
+    vector_entries_created: int
+    vector_entries_updated: int
+    vector_entries_deactivated: int
     embedding_tokens_processed: int
     estimated_embedding_cost_usd_micros: int
     documents: tuple[LocalSeedDocumentIngestionItem, ...]
@@ -72,6 +82,7 @@ class LocalSeedDocumentIngestionService:
         self._section_extraction_service = MarkdownSectionExtractionService()
         self._chunking_service = MarkdownChunkingService()
         self._embedding_service = ChunkEmbeddingService(provider=FakeEmbeddingProvider())
+        self._vector_indexing_service = VectorIndexingService()
 
     def ingest(
         self,
@@ -93,6 +104,9 @@ class LocalSeedDocumentIngestionService:
             chunks_created = 0
             embeddings_created = 0
             embeddings_reused = 0
+            vector_entries_created = 0
+            vector_entries_updated = 0
+            vector_entries_deactivated = 0
             embedding_tokens_processed = 0
             estimated_embedding_cost_usd_micros = 0
             ingested_documents: list[LocalSeedDocumentIngestionItem] = []
@@ -114,6 +128,9 @@ class LocalSeedDocumentIngestionService:
                 chunks_created += item.chunks_created
                 embeddings_created += item.embeddings_created
                 embeddings_reused += item.embeddings_reused
+                vector_entries_created += item.vector_entries_created
+                vector_entries_updated += item.vector_entries_updated
+                vector_entries_deactivated += item.vector_entries_deactivated
                 embedding_tokens_processed += item.embedding_tokens_processed
                 estimated_embedding_cost_usd_micros += (
                     item.estimated_embedding_cost_usd_micros
@@ -128,6 +145,9 @@ class LocalSeedDocumentIngestionService:
                 chunks_created=chunks_created,
                 embeddings_created=embeddings_created,
                 embeddings_reused=embeddings_reused,
+                vector_entries_created=vector_entries_created,
+                vector_entries_updated=vector_entries_updated,
+                vector_entries_deactivated=vector_entries_deactivated,
                 embedding_tokens_processed=embedding_tokens_processed,
                 estimated_embedding_cost_usd_micros=estimated_embedding_cost_usd_micros,
             )
@@ -145,6 +165,9 @@ class LocalSeedDocumentIngestionService:
                 chunks_created=chunks_created,
                 embeddings_created=embeddings_created,
                 embeddings_reused=embeddings_reused,
+                vector_entries_created=vector_entries_created,
+                vector_entries_updated=vector_entries_updated,
+                vector_entries_deactivated=vector_entries_deactivated,
                 embedding_tokens_processed=embedding_tokens_processed,
                 estimated_embedding_cost_usd_micros=estimated_embedding_cost_usd_micros,
                 documents=tuple(ingested_documents),
@@ -220,6 +243,16 @@ class LocalSeedDocumentIngestionService:
             transaction=transaction,
         )
 
+        vector_summary = self._vector_indexing_service.ensure_current_index_for_document(
+            source_document=source_document,
+            document_version=document_version,
+            section_chunks=self._build_section_chunks(
+                sections=sections,
+                chunks=chunks,
+            ),
+            transaction=transaction,
+        )
+
         source_document.mark_current_version(document_version.id)
         transaction.source_documents.save(source_document)
 
@@ -235,6 +268,9 @@ class LocalSeedDocumentIngestionService:
             chunks_created=created_chunk_count,
             embeddings_created=embedding_summary.embeddings_created,
             embeddings_reused=embedding_summary.embeddings_reused,
+            vector_entries_created=vector_summary.vector_entries_created,
+            vector_entries_updated=vector_summary.vector_entries_updated,
+            vector_entries_deactivated=vector_summary.vector_entries_deactivated,
             embedding_tokens_processed=embedding_summary.embedding_tokens_processed,
             estimated_embedding_cost_usd_micros=(
                 embedding_summary.estimated_embedding_cost_usd_micros
@@ -282,6 +318,16 @@ class LocalSeedDocumentIngestionService:
                 transaction=transaction,
             )
 
+            vector_summary = self._vector_indexing_service.ensure_current_index_for_document(
+                source_document=existing_document,
+                document_version=latest_version,
+                section_chunks=self._build_section_chunks(
+                    sections=sections,
+                    chunks=chunks,
+                ),
+                transaction=transaction,
+            )
+
             return LocalSeedDocumentIngestionItem(
                 external_id=candidate.external_id,
                 title=candidate.title,
@@ -294,6 +340,9 @@ class LocalSeedDocumentIngestionService:
                 chunks_created=created_chunk_count,
                 embeddings_created=embedding_summary.embeddings_created,
                 embeddings_reused=embedding_summary.embeddings_reused,
+                vector_entries_created=vector_summary.vector_entries_created,
+                vector_entries_updated=vector_summary.vector_entries_updated,
+                vector_entries_deactivated=vector_summary.vector_entries_deactivated,
                 embedding_tokens_processed=embedding_summary.embedding_tokens_processed,
                 estimated_embedding_cost_usd_micros=(
                     embedding_summary.estimated_embedding_cost_usd_micros
@@ -328,6 +377,16 @@ class LocalSeedDocumentIngestionService:
             transaction=transaction,
         )
 
+        vector_summary = self._vector_indexing_service.ensure_current_index_for_document(
+            source_document=existing_document,
+            document_version=document_version,
+            section_chunks=self._build_section_chunks(
+                sections=sections,
+                chunks=chunks,
+            ),
+            transaction=transaction,
+        )
+
         existing_document.mark_current_version(document_version.id)
         transaction.source_documents.save(existing_document)
 
@@ -343,6 +402,9 @@ class LocalSeedDocumentIngestionService:
             chunks_created=created_chunk_count,
             embeddings_created=embedding_summary.embeddings_created,
             embeddings_reused=embedding_summary.embeddings_reused,
+            vector_entries_created=vector_summary.vector_entries_created,
+            vector_entries_updated=vector_summary.vector_entries_updated,
+            vector_entries_deactivated=vector_summary.vector_entries_deactivated,
             embedding_tokens_processed=embedding_summary.embedding_tokens_processed,
             estimated_embedding_cost_usd_micros=(
                 embedding_summary.estimated_embedding_cost_usd_micros
@@ -436,3 +498,25 @@ class LocalSeedDocumentIngestionService:
                 return 0, 0
 
             return 0, 0
+    
+    def _build_section_chunks(
+        self,
+        *,
+        sections: list[SectionVersion],
+        chunks: list[ChunkVersion],
+    ) -> list[SectionChunks]:
+        chunks_by_section_id: dict[UUID, list[ChunkVersion]] = {}
+
+        for chunk in chunks:
+            chunks_by_section_id.setdefault(chunk.section_version_id, []).append(chunk)
+
+        return [
+            SectionChunks(
+                section=section,
+                chunks=sorted(
+                    chunks_by_section_id.get(section.id, []),
+                    key=lambda chunk: chunk.chunk_index,
+                ),
+            )
+            for section in sorted(sections, key=lambda section: section.ordinal)
+        ]

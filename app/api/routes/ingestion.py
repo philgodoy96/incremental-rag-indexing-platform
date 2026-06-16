@@ -46,6 +46,9 @@ class IngestedDocumentResponse(BaseModel):
     chunks_created: int
     embeddings_created: int
     embeddings_reused: int
+    vector_entries_created: int
+    vector_entries_updated: int
+    vector_entries_deactivated: int
     embedding_tokens_processed: int
     estimated_embedding_cost_usd_micros: int
 
@@ -61,6 +64,9 @@ class LocalSeedDocumentIngestionResponse(BaseModel):
     chunks_created: int
     embeddings_created: int
     embeddings_reused: int
+    vector_entries_created: int
+    vector_entries_updated: int
+    vector_entries_deactivated: int
     embedding_tokens_processed: int
     estimated_embedding_cost_usd_micros: int
     documents: list[IngestedDocumentResponse]
@@ -163,6 +169,9 @@ def build_ingestion_response(
         chunks_created=result.chunks_created,
         embeddings_created=result.embeddings_created,
         embeddings_reused=result.embeddings_reused,
+        vector_entries_created=result.vector_entries_created,
+        vector_entries_updated=result.vector_entries_updated,
+        vector_entries_deactivated=result.vector_entries_deactivated,
         embedding_tokens_processed=result.embedding_tokens_processed,
         estimated_embedding_cost_usd_micros=result.estimated_embedding_cost_usd_micros,
         documents=[
@@ -178,6 +187,9 @@ def build_ingestion_response(
                 chunks_created=document.chunks_created,
                 embeddings_created=document.embeddings_created,
                 embeddings_reused=document.embeddings_reused,
+                vector_entries_created=result.vector_entries_created,
+                vector_entries_updated=result.vector_entries_updated,
+                vector_entries_deactivated=result.vector_entries_deactivated,
                 embedding_tokens_processed=document.embedding_tokens_processed,
                 estimated_embedding_cost_usd_micros=(
                     document.estimated_embedding_cost_usd_micros

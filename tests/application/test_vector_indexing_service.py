@@ -362,3 +362,46 @@ def test_vector_indexing_service_deactivates_stale_entries() -> None:
     assert summary.vector_entries_deactivated == 1
     assert len(active_entries) == 1
     assert stale_entry.is_active is False
+
+def test_vector_indexing_service_is_idempotent_when_projection_is_current() -> None:
+    source_document = make_source_document()
+    document_version = make_document_version(source_document.id)
+    section = make_section(document_version.id)
+    chunk = make_chunk(section.id)
+    embedding_record = make_embedding_record(chunk)
+
+    transaction = InMemoryVectorIndexTransaction()
+    transaction.embedding_records.embedding_records[embedding_record.id] = (
+        embedding_record
+    )
+    transaction.chunk_embedding_links.links[uuid4()] = ChunkEmbeddingLink(
+        id=uuid4(),
+        chunk_version_id=chunk.id,
+        embedding_record_id=embedding_record.id,
+    )
+
+    service = VectorIndexingService()
+
+    first_summary = service.ensure_current_index_for_document(
+        source_document=source_document,
+        document_version=document_version,
+        section_chunks=[SectionChunks(section=section, chunks=[chunk])],
+        transaction=transaction,  # type: ignore[arg-type]
+    )
+
+    second_summary = service.ensure_current_index_for_document(
+        source_document=source_document,
+        document_version=document_version,
+        section_chunks=[SectionChunks(section=section, chunks=[chunk])],
+        transaction=transaction,  # type: ignore[arg-type]
+    )
+
+    assert first_summary.vector_entries_created == 1
+    assert first_summary.vector_entries_updated == 0
+    assert first_summary.vector_entries_deactivated == 0
+
+    assert second_summary.vector_entries_created == 0
+    assert second_summary.vector_entries_updated == 0
+    assert second_summary.vector_entries_deactivated == 0
+
+    assert len(transaction.vector_index_entries.entries) == 1
