@@ -3,6 +3,7 @@ from enum import StrEnum
 from pathlib import Path
 from uuid import UUID, uuid4
 
+from app.application.services.chunk_embedding_service import ChunkEmbeddingService
 from app.application.services.local_seed_document_discovery_service import (
     LocalSeedDocumentDiscoveryService,
 )
@@ -12,6 +13,7 @@ from app.application.services.markdown_section_extraction_service import (
 )
 from app.application.transactions import DocumentIngestionTransaction
 from app.domain.documents.entities import (
+    ChunkVersion,
     DocumentVersion,
     IngestionRun,
     SectionVersion,
@@ -38,6 +40,9 @@ class LocalSeedDocumentIngestionItem:
     content_checksum: str
     sections_created: int
     chunks_created: int
+    embeddings_created: int
+    embedding_tokens_processed: int
+    estimated_embedding_cost_usd_micros: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +55,9 @@ class LocalSeedDocumentIngestionResult:
     documents_changed: int
     sections_created: int
     chunks_created: int
+    embeddings_created: int
+    embedding_tokens_processed: int
+    estimated_embedding_cost_usd_micros: int
     documents: tuple[LocalSeedDocumentIngestionItem, ...]
 
 
@@ -60,6 +68,7 @@ class LocalSeedDocumentIngestionService:
         self._source_path = source_path
         self._section_extraction_service = MarkdownSectionExtractionService()
         self._chunking_service = MarkdownChunkingService()
+        self._embedding_service = ChunkEmbeddingService()
 
     def ingest(
         self,
@@ -77,6 +86,9 @@ class LocalSeedDocumentIngestionService:
             documents_changed = 0
             sections_created = 0
             chunks_created = 0
+            embeddings_created = 0
+            embedding_tokens_processed = 0
+            estimated_embedding_cost_usd_micros = 0
             ingested_documents: list[LocalSeedDocumentIngestionItem] = []
 
             for candidate in discovery_result.documents:
@@ -94,13 +106,22 @@ class LocalSeedDocumentIngestionService:
 
                 sections_created += item.sections_created
                 chunks_created += item.chunks_created
+                embeddings_created += item.embeddings_created
                 ingested_documents.append(item)
+
+                embedding_tokens_processed += item.embedding_tokens_processed
+                estimated_embedding_cost_usd_micros += (
+                    item.estimated_embedding_cost_usd_micros
+                )
 
             run.mark_completed(
                 documents_seen=discovery_result.document_count,
                 documents_changed=documents_changed,
                 sections_created=sections_created,
                 chunks_created=chunks_created,
+                embeddings_created=embeddings_created,
+                embedding_tokens_processed=embedding_tokens_processed,
+                estimated_embedding_cost_usd_micros=estimated_embedding_cost_usd_micros,
             )
             transaction.ingestion_runs.save(run)
             transaction.commit()
@@ -114,6 +135,9 @@ class LocalSeedDocumentIngestionService:
                 documents_changed=run.documents_changed,
                 sections_created=run.sections_created,
                 chunks_created=run.chunks_created,
+                embeddings_created=run.embeddings_created,
+                embedding_tokens_processed=run.embedding_tokens_processed,
+                estimated_embedding_cost_usd_micros=run.estimated_embedding_cost_usd_micros,
                 documents=tuple(ingested_documents),
             )
 
@@ -134,49 +158,87 @@ class LocalSeedDocumentIngestionService:
         )
 
         if existing_document is None:
-            source_document = SourceDocument.create(
-                source_system=candidate.source_system,
-                external_id=candidate.external_id,
-                source_uri=candidate.source_uri,
-                title=candidate.title,
-            )
-            transaction.source_documents.save(source_document)
-            transaction.flush()
-
-            document_version = self._create_document_version(
+            return self._ingest_new_document(
                 candidate=candidate,
-                source_document_id=source_document.id,
-                version_number=1,
                 run_id=run_id,
-            )
-            transaction.document_versions.save(document_version)
-            transaction.flush()
-
-            sections, created_section_count = self._ensure_sections_for_document_version(
-                document_version=document_version,
-                title=candidate.title,
-                transaction=transaction,
-            )
-            created_chunk_count = self._ensure_chunks_for_sections(
-                sections=sections,
                 transaction=transaction,
             )
 
-            source_document.mark_current_version(document_version.id)
-            transaction.source_documents.save(source_document)
+        return self._ingest_existing_document(
+            candidate=candidate,
+            existing_document=existing_document,
+            run_id=run_id,
+            transaction=transaction,
+        )
 
-            return LocalSeedDocumentIngestionItem(
-                external_id=candidate.external_id,
-                title=candidate.title,
-                action=LocalSeedDocumentIngestionAction.CREATED,
-                source_document_id=source_document.id,
-                document_version_id=document_version.id,
-                version_number=document_version.version_number,
-                content_checksum=candidate.content_checksum,
-                sections_created=created_section_count,
-                chunks_created=created_chunk_count,
-            )
+    def _ingest_new_document(
+        self,
+        *,
+        candidate: SourceDocumentCandidate,
+        run_id: UUID,
+        transaction: DocumentIngestionTransaction,
+    ) -> LocalSeedDocumentIngestionItem:
+        source_document = SourceDocument.create(
+            source_system=candidate.source_system,
+            external_id=candidate.external_id,
+            source_uri=candidate.source_uri,
+            title=candidate.title,
+        )
+        transaction.source_documents.save(source_document)
+        transaction.flush()
 
+        document_version = self._create_document_version(
+            candidate=candidate,
+            source_document_id=source_document.id,
+            version_number=1,
+            run_id=run_id,
+        )
+        transaction.document_versions.save(document_version)
+        transaction.flush()
+
+        sections, created_section_count = self._ensure_sections_for_document_version(
+            document_version=document_version,
+            title=candidate.title,
+            transaction=transaction,
+        )
+        chunks, created_chunk_count = self._ensure_chunks_for_sections(
+            sections=sections,
+            transaction=transaction,
+        )
+        embedding_summary = self._embedding_service.ensure_embeddings_for_chunks(
+            chunks=chunks,
+            ingestion_run_id=run_id,
+            transaction=transaction,
+        )
+
+        source_document.mark_current_version(document_version.id)
+        transaction.source_documents.save(source_document)
+
+        return LocalSeedDocumentIngestionItem(
+            external_id=candidate.external_id,
+            title=candidate.title,
+            action=LocalSeedDocumentIngestionAction.CREATED,
+            source_document_id=source_document.id,
+            document_version_id=document_version.id,
+            version_number=document_version.version_number,
+            content_checksum=candidate.content_checksum,
+            sections_created=created_section_count,
+            chunks_created=created_chunk_count,
+            embeddings_created=embedding_summary.embeddings_created,
+            embedding_tokens_processed=embedding_summary.embedding_tokens_processed,
+            estimated_embedding_cost_usd_micros=(
+                embedding_summary.estimated_embedding_cost_usd_micros
+            ),
+        )
+
+    def _ingest_existing_document(
+        self,
+        *,
+        candidate: SourceDocumentCandidate,
+        existing_document: SourceDocument,
+        run_id: UUID,
+        transaction: DocumentIngestionTransaction,
+    ) -> LocalSeedDocumentIngestionItem:
         latest_version = transaction.document_versions.get_latest_for_source_document(
             existing_document.id,
         )
@@ -200,8 +262,13 @@ class LocalSeedDocumentIngestionService:
                 title=candidate.title,
                 transaction=transaction,
             )
-            created_chunk_count = self._ensure_chunks_for_sections(
+            chunks, created_chunk_count = self._ensure_chunks_for_sections(
                 sections=sections,
+                transaction=transaction,
+            )
+            embedding_summary = self._embedding_service.ensure_embeddings_for_chunks(
+                chunks=chunks,
+                ingestion_run_id=run_id,
                 transaction=transaction,
             )
 
@@ -215,6 +282,11 @@ class LocalSeedDocumentIngestionService:
                 content_checksum=candidate.content_checksum,
                 sections_created=created_section_count,
                 chunks_created=created_chunk_count,
+                embeddings_created=embedding_summary.embeddings_created,
+                embedding_tokens_processed=embedding_summary.embedding_tokens_processed,
+                estimated_embedding_cost_usd_micros=(
+                    embedding_summary.estimated_embedding_cost_usd_micros
+                ),
             )
 
         next_version_number = (
@@ -235,8 +307,13 @@ class LocalSeedDocumentIngestionService:
             title=candidate.title,
             transaction=transaction,
         )
-        created_chunk_count = self._ensure_chunks_for_sections(
+        chunks, created_chunk_count = self._ensure_chunks_for_sections(
             sections=sections,
+            transaction=transaction,
+        )
+        embedding_summary = self._embedding_service.ensure_embeddings_for_chunks(
+            chunks=chunks,
+            ingestion_run_id=run_id,
             transaction=transaction,
         )
 
@@ -253,6 +330,11 @@ class LocalSeedDocumentIngestionService:
             content_checksum=candidate.content_checksum,
             sections_created=created_section_count,
             chunks_created=created_chunk_count,
+            embeddings_created=embedding_summary.embeddings_created,
+            embedding_tokens_processed=embedding_summary.embedding_tokens_processed,
+            estimated_embedding_cost_usd_micros=(
+                embedding_summary.estimated_embedding_cost_usd_micros
+            ),
         )
 
     def _create_document_version(
@@ -303,7 +385,8 @@ class LocalSeedDocumentIngestionService:
         *,
         sections: list[SectionVersion],
         transaction: DocumentIngestionTransaction,
-    ) -> int:
+    ) -> tuple[list[ChunkVersion], int]:
+        all_chunks: list[ChunkVersion] = []
         chunks_created = 0
 
         for section in sections:
@@ -312,15 +395,32 @@ class LocalSeedDocumentIngestionService:
             )
 
             if existing_chunks:
+                all_chunks.extend(existing_chunks)
                 continue
 
             chunk_versions = self._chunking_service.create_chunk_versions(
                 section_version=section,
             )
             transaction.chunk_versions.save_many(chunk_versions)
+            all_chunks.extend(chunk_versions)
             chunks_created += len(chunk_versions)
 
         if chunks_created > 0:
             transaction.flush()
 
-        return chunks_created
+        return all_chunks, chunks_created
+
+    def _calculate_document_embedding_costs(
+        self,
+        *,
+        embeddings_created: int,
+        embedding_tokens_processed: int,
+        estimated_embedding_cost_usd_micros: int,
+        transaction: DocumentIngestionTransaction,
+        ) -> tuple[int, int]:
+            _ = transaction
+
+            if embeddings_created == 0:
+                return 0, 0
+
+            return 0, 0
