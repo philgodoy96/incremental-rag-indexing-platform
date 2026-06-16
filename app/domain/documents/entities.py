@@ -70,6 +70,20 @@ class SourceDocument:
             updated_at=now,
         )
 
+    def refresh_metadata(
+        self,
+        *,
+        source_uri: str,
+        title: str,
+        updated_at: datetime | None = None,
+    ) -> None:
+        ensure_not_blank(source_uri, "source_uri")
+        ensure_not_blank(title, "title")
+
+        self.source_uri = source_uri
+        self.title = title
+        self.updated_at = updated_at or utc_now()
+
     def mark_current_version(
         self,
         document_version_id: UUID,
