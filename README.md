@@ -191,8 +191,8 @@ Current status:
 - SourceDocument and DocumentVersion domain foundation introduced
 - Initial document persistence tables introduced
 - Local Markdown discovery endpoint introduced
-- Seed documents directory prepared
-- Seed documents planned but not yet generated
+- Persistent local seed ingestion endpoint introduced
+- Initial seed documents committed
 
 ## Documentation
 
