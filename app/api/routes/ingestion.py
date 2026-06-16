@@ -42,6 +42,7 @@ class IngestedDocumentResponse(BaseModel):
     document_version_id: UUID | None
     version_number: int | None
     content_checksum: str
+    sections_created: int
 
 
 class LocalSeedDocumentIngestionResponse(BaseModel):
@@ -51,6 +52,7 @@ class LocalSeedDocumentIngestionResponse(BaseModel):
     status: str
     documents_seen: int
     documents_changed: int
+    sections_created: int
     documents: list[IngestedDocumentResponse]
 
 
@@ -147,6 +149,7 @@ def build_ingestion_response(
         status=result.status.value,
         documents_seen=result.documents_seen,
         documents_changed=result.documents_changed,
+        sections_created=result.sections_created,
         documents=[
             IngestedDocumentResponse(
                 external_id=document.external_id,
@@ -156,6 +159,7 @@ def build_ingestion_response(
                 document_version_id=document.document_version_id,
                 version_number=document.version_number,
                 content_checksum=document.content_checksum,
+                sections_created=document.sections_created,
             )
             for document in result.documents
         ],

@@ -3,11 +3,13 @@ from sqlalchemy.orm import Session
 from app.domain.documents.repositories import (
     DocumentVersionRepository,
     IngestionRunRepository,
+    SectionVersionRepository,
     SourceDocumentRepository,
 )
 from app.infrastructure.repositories import (
     SqlAlchemyDocumentVersionRepository,
     SqlAlchemyIngestionRunRepository,
+    SqlAlchemySectionVersionRepository,
     SqlAlchemySourceDocumentRepository,
 )
 
@@ -21,6 +23,9 @@ class SqlAlchemyDocumentIngestionTransaction:
             session,
         )
         self.document_versions: DocumentVersionRepository = SqlAlchemyDocumentVersionRepository(
+            session,
+        )
+        self.section_versions: SectionVersionRepository = SqlAlchemySectionVersionRepository(
             session,
         )
         self.ingestion_runs: IngestionRunRepository = SqlAlchemyIngestionRunRepository(
