@@ -1,4 +1,5 @@
 from app.infrastructure.db.models.document_models import (
+    ChunkEmbeddingLinkModel,
     ChunkVersionModel,
     DocumentVersionModel,
     EmbeddingCostRecordModel,
@@ -9,6 +10,7 @@ from app.infrastructure.db.models.document_models import (
 )
 
 __all__ = [
+    "ChunkEmbeddingLinkModel",
     "ChunkVersionModel",
     "DocumentVersionModel",
     "EmbeddingCostRecordModel",

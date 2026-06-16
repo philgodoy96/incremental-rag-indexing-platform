@@ -1,6 +1,7 @@
 from typing import Protocol
 
 from app.domain.documents.repositories import (
+    ChunkEmbeddingLinkRepository,
     ChunkVersionRepository,
     DocumentVersionRepository,
     EmbeddingCostRecordRepository,
@@ -17,6 +18,7 @@ class DocumentIngestionTransaction(Protocol):
     section_versions: SectionVersionRepository
     chunk_versions: ChunkVersionRepository
     embedding_records: EmbeddingRecordRepository
+    chunk_embedding_links: ChunkEmbeddingLinkRepository
     embedding_cost_records: EmbeddingCostRecordRepository
     ingestion_runs: IngestionRunRepository
 

@@ -1,4 +1,5 @@
 from app.infrastructure.repositories.sqlalchemy_document_repositories import (
+    SqlAlchemyChunkEmbeddingLinkRepository,
     SqlAlchemyChunkVersionRepository,
     SqlAlchemyDocumentVersionRepository,
     SqlAlchemyEmbeddingCostRecordRepository,
@@ -9,6 +10,7 @@ from app.infrastructure.repositories.sqlalchemy_document_repositories import (
 )
 
 __all__ = [
+    "SqlAlchemyChunkEmbeddingLinkRepository",
     "SqlAlchemyChunkVersionRepository",
     "SqlAlchemyDocumentVersionRepository",
     "SqlAlchemyEmbeddingCostRecordRepository",

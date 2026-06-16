@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 from app.domain.documents.entities import (
+    ChunkEmbeddingLink,
     ChunkVersion,
     DocumentVersion,
     EmbeddingCostRecord,
@@ -11,6 +12,8 @@ from app.domain.documents.entities import (
 )
 from app.domain.documents.enums import IngestionRunStatus, SourceSystem
 from app.infrastructure.db.mappers.document_mappers import (
+    chunk_embedding_link_from_model,
+    chunk_embedding_link_to_model,
     chunk_version_from_model,
     chunk_version_to_model,
     document_version_from_model,
@@ -117,6 +120,19 @@ def test_embedding_record_mapper_round_trips_domain_entity() -> None:
     assert mapped_embedding == embedding_record
 
 
+def test_chunk_embedding_link_mapper_round_trips_domain_entity() -> None:
+    link = ChunkEmbeddingLink(
+        id=uuid4(),
+        chunk_version_id=uuid4(),
+        embedding_record_id=uuid4(),
+    )
+
+    model = chunk_embedding_link_to_model(link)
+    mapped_link = chunk_embedding_link_from_model(model)
+
+    assert mapped_link == link
+
+
 def test_embedding_cost_record_mapper_round_trips_domain_entity() -> None:
     cost_record = EmbeddingCostRecord(
         id=uuid4(),
@@ -143,7 +159,8 @@ def test_ingestion_run_mapper_round_trips_domain_entity() -> None:
         documents_changed=2,
         sections_created=8,
         chunks_created=8,
-        embeddings_created=8,
+        embeddings_created=6,
+        embeddings_reused=2,
         embedding_tokens_processed=300,
         estimated_embedding_cost_usd_micros=0,
     )
@@ -153,5 +170,6 @@ def test_ingestion_run_mapper_round_trips_domain_entity() -> None:
 
     assert mapped_run == ingestion_run
     assert mapped_run.status == IngestionRunStatus.COMPLETED
-    assert mapped_run.embeddings_created == 8
+    assert mapped_run.embeddings_created == 6
+    assert mapped_run.embeddings_reused == 2
     assert mapped_run.embedding_tokens_processed == 300

@@ -21,6 +21,7 @@ from app.domain.documents.entities import (
 )
 from app.domain.documents.enums import IngestionRunStatus, SourceSystem
 from app.domain.documents.source_candidates import SourceDocumentCandidate
+from app.providers.fake_embedding_provider import FakeEmbeddingProvider
 
 
 class LocalSeedDocumentIngestionAction(StrEnum):
@@ -41,6 +42,7 @@ class LocalSeedDocumentIngestionItem:
     sections_created: int
     chunks_created: int
     embeddings_created: int
+    embeddings_reused: int
     embedding_tokens_processed: int
     estimated_embedding_cost_usd_micros: int
 
@@ -56,6 +58,7 @@ class LocalSeedDocumentIngestionResult:
     sections_created: int
     chunks_created: int
     embeddings_created: int
+    embeddings_reused: int
     embedding_tokens_processed: int
     estimated_embedding_cost_usd_micros: int
     documents: tuple[LocalSeedDocumentIngestionItem, ...]
@@ -68,7 +71,7 @@ class LocalSeedDocumentIngestionService:
         self._source_path = source_path
         self._section_extraction_service = MarkdownSectionExtractionService()
         self._chunking_service = MarkdownChunkingService()
-        self._embedding_service = ChunkEmbeddingService()
+        self._embedding_service = ChunkEmbeddingService(provider=FakeEmbeddingProvider())
 
     def ingest(
         self,
@@ -83,10 +86,13 @@ class LocalSeedDocumentIngestionService:
                 source_path=self._source_path,
             ).discover()
 
+            documents_seen = len(discovery_result.documents)
+
             documents_changed = 0
             sections_created = 0
             chunks_created = 0
             embeddings_created = 0
+            embeddings_reused = 0
             embedding_tokens_processed = 0
             estimated_embedding_cost_usd_micros = 0
             ingested_documents: list[LocalSeedDocumentIngestionItem] = []
@@ -107,19 +113,21 @@ class LocalSeedDocumentIngestionService:
                 sections_created += item.sections_created
                 chunks_created += item.chunks_created
                 embeddings_created += item.embeddings_created
-                ingested_documents.append(item)
-
+                embeddings_reused += item.embeddings_reused
                 embedding_tokens_processed += item.embedding_tokens_processed
                 estimated_embedding_cost_usd_micros += (
                     item.estimated_embedding_cost_usd_micros
                 )
 
+                ingested_documents.append(item)
+
             run.mark_completed(
-                documents_seen=discovery_result.document_count,
+                documents_seen=documents_seen,
                 documents_changed=documents_changed,
                 sections_created=sections_created,
                 chunks_created=chunks_created,
                 embeddings_created=embeddings_created,
+                embeddings_reused=embeddings_reused,
                 embedding_tokens_processed=embedding_tokens_processed,
                 estimated_embedding_cost_usd_micros=estimated_embedding_cost_usd_micros,
             )
@@ -128,16 +136,17 @@ class LocalSeedDocumentIngestionService:
 
             return LocalSeedDocumentIngestionResult(
                 run_id=run.id,
-                source_system=SourceSystem.LOCAL_SEED_DOCUMENTS,
-                source_path=discovery_result.source_path,
+                source_system=run.source_system,
+                source_path=str(self._source_path),
                 status=run.status,
-                documents_seen=run.documents_seen,
-                documents_changed=run.documents_changed,
-                sections_created=run.sections_created,
-                chunks_created=run.chunks_created,
-                embeddings_created=run.embeddings_created,
-                embedding_tokens_processed=run.embedding_tokens_processed,
-                estimated_embedding_cost_usd_micros=run.estimated_embedding_cost_usd_micros,
+                documents_seen=documents_seen,
+                documents_changed=documents_changed,
+                sections_created=sections_created,
+                chunks_created=chunks_created,
+                embeddings_created=embeddings_created,
+                embeddings_reused=embeddings_reused,
+                embedding_tokens_processed=embedding_tokens_processed,
+                estimated_embedding_cost_usd_micros=estimated_embedding_cost_usd_micros,
                 documents=tuple(ingested_documents),
             )
 
@@ -225,6 +234,7 @@ class LocalSeedDocumentIngestionService:
             sections_created=created_section_count,
             chunks_created=created_chunk_count,
             embeddings_created=embedding_summary.embeddings_created,
+            embeddings_reused=embedding_summary.embeddings_reused,
             embedding_tokens_processed=embedding_summary.embedding_tokens_processed,
             estimated_embedding_cost_usd_micros=(
                 embedding_summary.estimated_embedding_cost_usd_micros
@@ -283,12 +293,13 @@ class LocalSeedDocumentIngestionService:
                 sections_created=created_section_count,
                 chunks_created=created_chunk_count,
                 embeddings_created=embedding_summary.embeddings_created,
+                embeddings_reused=embedding_summary.embeddings_reused,
                 embedding_tokens_processed=embedding_summary.embedding_tokens_processed,
                 estimated_embedding_cost_usd_micros=(
                     embedding_summary.estimated_embedding_cost_usd_micros
                 ),
             )
-
+            
         next_version_number = (
             1 if latest_version is None else latest_version.version_number + 1
         )
@@ -331,6 +342,7 @@ class LocalSeedDocumentIngestionService:
             sections_created=created_section_count,
             chunks_created=created_chunk_count,
             embeddings_created=embedding_summary.embeddings_created,
+            embeddings_reused=embedding_summary.embeddings_reused,
             embedding_tokens_processed=embedding_summary.embedding_tokens_processed,
             estimated_embedding_cost_usd_micros=(
                 embedding_summary.estimated_embedding_cost_usd_micros

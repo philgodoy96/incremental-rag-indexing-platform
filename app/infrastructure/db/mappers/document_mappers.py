@@ -1,4 +1,5 @@
 from app.domain.documents.entities import (
+    ChunkEmbeddingLink,
     ChunkVersion,
     DocumentVersion,
     EmbeddingCostRecord,
@@ -13,6 +14,7 @@ from app.domain.documents.enums import (
     SourceSystem,
 )
 from app.infrastructure.db.models.document_models import (
+    ChunkEmbeddingLinkModel,
     ChunkVersionModel,
     DocumentVersionModel,
     EmbeddingCostRecordModel,
@@ -177,6 +179,30 @@ def embedding_record_from_model(model: EmbeddingRecordModel) -> EmbeddingRecord:
     )
 
 
+def chunk_embedding_link_to_model(
+    entity: ChunkEmbeddingLink,
+) -> ChunkEmbeddingLinkModel:
+    model = ChunkEmbeddingLinkModel()
+
+    model.id = entity.id
+    model.chunk_version_id = entity.chunk_version_id
+    model.embedding_record_id = entity.embedding_record_id
+    model.created_at = entity.created_at
+
+    return model
+
+
+def chunk_embedding_link_from_model(
+    model: ChunkEmbeddingLinkModel,
+) -> ChunkEmbeddingLink:
+    return ChunkEmbeddingLink(
+        id=model.id,
+        chunk_version_id=model.chunk_version_id,
+        embedding_record_id=model.embedding_record_id,
+        created_at=model.created_at,
+    )
+
+
 def embedding_cost_record_to_model(
     entity: EmbeddingCostRecord,
 ) -> EmbeddingCostRecordModel:
@@ -222,6 +248,7 @@ def ingestion_run_to_model(entity: IngestionRun) -> IngestionRunModel:
     model.sections_created = entity.sections_created
     model.chunks_created = entity.chunks_created
     model.embeddings_created = entity.embeddings_created
+    model.embeddings_reused = entity.embeddings_reused
     model.embedding_tokens_processed = entity.embedding_tokens_processed
     model.estimated_embedding_cost_usd_micros = (
         entity.estimated_embedding_cost_usd_micros
@@ -243,6 +270,7 @@ def ingestion_run_from_model(model: IngestionRunModel) -> IngestionRun:
         sections_created=model.sections_created,
         chunks_created=model.chunks_created,
         embeddings_created=model.embeddings_created,
+        embeddings_reused=model.embeddings_reused,
         embedding_tokens_processed=model.embedding_tokens_processed,
         estimated_embedding_cost_usd_micros=model.estimated_embedding_cost_usd_micros,
         error_message=model.error_message,

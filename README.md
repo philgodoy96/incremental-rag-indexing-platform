@@ -199,6 +199,8 @@ Current status:
 - ChunkVersion persistence introduced
 - Fake deterministic embedding provider introduced
 - EmbeddingRecord and EmbeddingCostRecord persistence introduced
+- Cross-version embedding reuse introduced
+- ChunkEmbeddingLink persistence introduced
 
 ## Documentation
 

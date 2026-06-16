@@ -4,6 +4,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from app.domain.documents.entities import (
+    ChunkEmbeddingLink,
     ChunkVersion,
     DocumentVersion,
     EmbeddingCostRecord,
@@ -14,6 +15,7 @@ from app.domain.documents.entities import (
 )
 from app.domain.documents.enums import SourceSystem
 from app.domain.documents.repositories import (
+    ChunkEmbeddingLinkRepository,
     ChunkVersionRepository,
     DocumentVersionRepository,
     EmbeddingCostRecordRepository,
@@ -23,6 +25,8 @@ from app.domain.documents.repositories import (
     SourceDocumentRepository,
 )
 from app.infrastructure.db.mappers.document_mappers import (
+    chunk_embedding_link_from_model,
+    chunk_embedding_link_to_model,
     chunk_version_from_model,
     chunk_version_to_model,
     document_version_from_model,
@@ -38,6 +42,7 @@ from app.infrastructure.db.mappers.document_mappers import (
     source_document_to_model,
 )
 from app.infrastructure.db.models.document_models import (
+    ChunkEmbeddingLinkModel,
     ChunkVersionModel,
     DocumentVersionModel,
     EmbeddingRecordModel,
@@ -188,9 +193,54 @@ class SqlAlchemyEmbeddingRecordRepository(EmbeddingRecordRepository):
 
         return embedding_record_from_model(model)
 
+    def get_by_embedding_identity(
+        self,
+        *,
+        provider: str,
+        model_name: str,
+        embedding_input_hash: str,
+    ) -> EmbeddingRecord | None:
+        statement: Select[tuple[EmbeddingRecordModel]] = select(
+            EmbeddingRecordModel,
+        ).where(
+            EmbeddingRecordModel.provider == provider,
+            EmbeddingRecordModel.model_name == model_name,
+            EmbeddingRecordModel.embedding_input_hash == embedding_input_hash,
+        )
+        model = self._session.execute(statement).scalar_one_or_none()
+
+        if model is None:
+            return None
+
+        return embedding_record_from_model(model)
+
     def save_many(self, embedding_records: list[EmbeddingRecord]) -> None:
         for embedding_record in embedding_records:
             self._session.merge(embedding_record_to_model(embedding_record))
+
+
+class SqlAlchemyChunkEmbeddingLinkRepository(ChunkEmbeddingLinkRepository):
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def get_by_chunk_version_id(
+        self,
+        chunk_version_id: UUID,
+    ) -> ChunkEmbeddingLink | None:
+        model = self._session.execute(
+            select(ChunkEmbeddingLinkModel).where(
+                ChunkEmbeddingLinkModel.chunk_version_id == chunk_version_id,
+            )
+        ).scalar_one_or_none()
+
+        if model is None:
+            return None
+
+        return chunk_embedding_link_from_model(model)
+
+    def save_many(self, links: list[ChunkEmbeddingLink]) -> None:
+        for link in links:
+            self._session.merge(chunk_embedding_link_to_model(link))
 
 
 class SqlAlchemyEmbeddingCostRecordRepository(EmbeddingCostRecordRepository):
