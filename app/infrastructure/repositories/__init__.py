@@ -7,6 +7,7 @@ from app.infrastructure.repositories.sqlalchemy_document_repositories import (
     SqlAlchemyIngestionRunRepository,
     SqlAlchemySectionVersionRepository,
     SqlAlchemySourceDocumentRepository,
+    SqlAlchemyVectorIndexEntryRepository,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "SqlAlchemyIngestionRunRepository",
     "SqlAlchemySectionVersionRepository",
     "SqlAlchemySourceDocumentRepository",
+    "SqlAlchemyVectorIndexEntryRepository",
 ]

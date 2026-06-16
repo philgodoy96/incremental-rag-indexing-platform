@@ -15,6 +15,8 @@ from app.infrastructure.db.mappers.document_mappers import (
     section_version_to_model,
     source_document_from_model,
     source_document_to_model,
+    vector_index_entry_from_model,
+    vector_index_entry_to_model,
 )
 
 __all__ = [
@@ -34,4 +36,6 @@ __all__ = [
     "section_version_to_model",
     "source_document_from_model",
     "source_document_to_model",
+    "vector_index_entry_from_model",
+    "vector_index_entry_to_model",
 ]

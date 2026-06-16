@@ -1,7 +1,8 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -219,6 +220,67 @@ class ChunkEmbeddingLinkModel(Base):
         nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class VectorIndexEntryModel(Base):
+    __tablename__ = "vector_index_entries"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "source_document_id",
+            "stable_section_key",
+            "chunk_index",
+            "provider",
+            "model_name",
+            name="uq_vector_index_entries_logical_identity",
+        ),
+        Index("ix_vector_index_entries_source_document_id", "source_document_id"),
+        Index("ix_vector_index_entries_document_version_id", "document_version_id"),
+        Index("ix_vector_index_entries_section_version_id", "section_version_id"),
+        Index("ix_vector_index_entries_chunk_version_id", "chunk_version_id"),
+        Index("ix_vector_index_entries_embedding_record_id", "embedding_record_id"),
+        Index("ix_vector_index_entries_is_active", "is_active"),
+        Index("ix_vector_index_entries_provider_model", "provider", "model_name"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
+    source_document_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("source_documents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    document_version_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("document_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    section_version_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("section_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    chunk_version_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("chunk_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    embedding_record_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("embedding_records.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    stable_section_key: Mapped[str] = mapped_column(String(1024), nullable=False)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    embedding_input_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    heading_context: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    embedding_vector: Mapped[list[float]] = mapped_column(Vector(), nullable=False)
+    dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class EmbeddingCostRecordModel(Base):

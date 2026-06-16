@@ -7,6 +7,7 @@ from app.infrastructure.db.models.document_models import (
     IngestionRunModel,
     SectionVersionModel,
     SourceDocumentModel,
+    VectorIndexEntryModel,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "IngestionRunModel",
     "SectionVersionModel",
     "SourceDocumentModel",
+    "VectorIndexEntryModel",
 ]
