@@ -36,12 +36,46 @@ class FakeSemanticRetriever:
 class InMemoryAnswerRecordRepository:
     def __init__(self) -> None:
         self.records: dict[UUID, AnswerRecord] = {}
+        self._save_order: list[UUID] = []
 
     def get_by_id(self, answer_id: UUID) -> AnswerRecord | None:
         return self.records.get(answer_id)
 
+    def list_recent(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        status: str | None = None,
+        provider: str | None = None,
+        model_name: str | None = None,
+    ) -> list[AnswerRecord]:
+        records = list(self.records.values())
+        save_order = {
+            answer_id: index for index, answer_id in enumerate(self._save_order)
+        }
+
+        if status is not None:
+            records = [record for record in records if record.status.value == status]
+
+        if provider is not None:
+            records = [record for record in records if record.provider == provider]
+
+        if model_name is not None:
+            records = [record for record in records if record.model_name == model_name]
+
+        records = sorted(
+            records,
+            key=lambda record: (record.created_at, save_order[record.id]),
+            reverse=True,
+        )
+
+        return records[offset : offset + limit]
+
     def save(self, answer: AnswerRecord) -> None:
         self.records[answer.id] = answer
+        if answer.id not in self._save_order:
+            self._save_order.append(answer.id)
 
 
 class InMemoryAnswerCitationRecordRepository:
@@ -305,3 +339,35 @@ def test_grounded_answer_service_requires_query_trace_id() -> None:
 
     assert transaction.flush_count == 0
     assert transaction.commit_count == 0
+
+
+def test_in_memory_answer_record_repository_lists_recent_records() -> None:
+    repository = InMemoryAnswerRecordRepository()
+
+    first = AnswerRecord(
+        id=uuid4(),
+        question="First question",
+        answer="First answer",
+        status=GroundedAnswerStatus.ANSWERED,
+        query_trace_id=uuid4(),
+        top_k=5,
+        provider="fake",
+        model_name="fake-embedding-v1",
+    )
+    second = AnswerRecord(
+        id=uuid4(),
+        question="Second question",
+        answer="Second answer",
+        status=GroundedAnswerStatus.ANSWERED,
+        query_trace_id=uuid4(),
+        top_k=5,
+        provider="fake",
+        model_name="fake-embedding-v1",
+    )
+
+    repository.save(first)
+    repository.save(second)
+
+    records = repository.list_recent(limit=10, offset=0)
+
+    assert [record.id for record in records] == [second.id, first.id]

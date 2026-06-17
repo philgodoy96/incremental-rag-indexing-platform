@@ -32,6 +32,37 @@ class SqlAlchemyAnswerRecordRepository(AnswerRecordRepository):
 
         return answer_record_from_model(model)
 
+    def list_recent(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        status: str | None = None,
+        provider: str | None = None,
+        model_name: str | None = None,
+    ) -> list[AnswerRecord]:
+        statement = select(AnswerRecordModel)
+
+        if status is not None:
+            statement = statement.where(AnswerRecordModel.status == status)
+
+        if provider is not None:
+            statement = statement.where(AnswerRecordModel.provider == provider)
+
+        if model_name is not None:
+            statement = statement.where(AnswerRecordModel.model_name == model_name)
+
+        statement = (
+            statement.order_by(AnswerRecordModel.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+
+        return [
+            answer_record_from_model(model)
+            for model in self._session.execute(statement).scalars().all()
+        ]
+
     def save(self, answer: AnswerRecord) -> None:
         self._session.merge(answer_record_to_model(answer))
 
