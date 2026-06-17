@@ -209,6 +209,9 @@ Current status:
 - Persisted answers can now be listed and inspected by ID
 - Grounded answer generation now persists LLM provider call records
 - LLM provider calls can now be inspected by answer_id
+- Failed provider calls are exposed through the LLM Provider Call Read API
+- Failed LLM provider calls are now persisted during answer generation
+- LLM provider identity and LLMProviderError introduced
 - Persisted LLM provider calls can now be listed and inspected by ID
 - LLM Provider Call Read API introduced
 - LLM provider call listing repository methods introduced
