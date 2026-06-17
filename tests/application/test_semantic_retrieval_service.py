@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -73,6 +74,30 @@ class InMemoryQueryTraceRepository(QueryTraceRepository):
 
     def get_by_id(self, query_trace_id: UUID) -> QueryTrace | None:
         return self.traces.get(query_trace_id)
+
+    def list_recent(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        status: str | None = None,
+        provider: str | None = None,
+        model_name: str | None = None,
+    ) -> list[QueryTrace]:
+        traces = list(self.traces.values())
+
+        if status is not None:
+            traces = [trace for trace in traces if trace.status.value == status]
+
+        if provider is not None:
+            traces = [trace for trace in traces if trace.provider == provider]
+
+        if model_name is not None:
+            traces = [trace for trace in traces if trace.model_name == model_name]
+
+        traces = sorted(traces, key=lambda trace: trace.started_at, reverse=True)
+
+        return traces[offset : offset + limit]
 
     def save(self, trace: QueryTrace) -> None:
         self.traces[trace.id] = trace
@@ -265,3 +290,32 @@ def test_semantic_retrieval_service_rejects_empty_query_embedding() -> None:
         )
 
     assert transaction.commit_count == 0
+
+
+def test_in_memory_query_trace_repository_lists_recent_traces() -> None:
+    repository = InMemoryQueryTraceRepository()
+    base_started_at = datetime(2026, 6, 17, 12, 0, 0, tzinfo=UTC)
+
+    first = QueryTrace(
+        id=uuid4(),
+        query="First query",
+        provider="fake",
+        model_name="fake-embedding-v1",
+        top_k=5,
+        started_at=base_started_at,
+    )
+    second = QueryTrace(
+        id=uuid4(),
+        query="Second query",
+        provider="fake",
+        model_name="fake-embedding-v1",
+        top_k=5,
+        started_at=base_started_at + timedelta(seconds=1),
+    )
+
+    repository.save(first)
+    repository.save(second)
+
+    traces = repository.list_recent(limit=10, offset=0)
+
+    assert [trace.id for trace in traces] == [second.id, first.id]

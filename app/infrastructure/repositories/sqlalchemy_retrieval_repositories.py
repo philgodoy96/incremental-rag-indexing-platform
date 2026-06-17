@@ -29,6 +29,37 @@ class SqlAlchemyQueryTraceRepository(QueryTraceRepository):
 
         return query_trace_from_model(model)
 
+    def list_recent(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        status: str | None = None,
+        provider: str | None = None,
+        model_name: str | None = None,
+    ) -> list[QueryTrace]:
+        statement = select(QueryTraceModel)
+
+        if status is not None:
+            statement = statement.where(QueryTraceModel.status == status)
+
+        if provider is not None:
+            statement = statement.where(QueryTraceModel.provider == provider)
+
+        if model_name is not None:
+            statement = statement.where(QueryTraceModel.model_name == model_name)
+
+        statement = (
+            statement.order_by(QueryTraceModel.started_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+
+        return [
+            query_trace_from_model(model)
+            for model in self._session.execute(statement).scalars().all()
+        ]
+
     def save(self, trace: QueryTrace) -> None:
         self._session.merge(query_trace_to_model(trace))
 
