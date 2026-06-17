@@ -203,6 +203,8 @@ Current status:
 - Vector index current projection updates introduced
 - Semantic retrieval API introduced
 - Semantic retrieval now returns query_trace_id
+- Retrieval traces can now be listed and inspected by ID
+- Query trace read API introduced
 - Query trace persistence introduced
 - QueryTrace and QueryTraceHit domain models introduced
 - Active vector similarity search introduced
