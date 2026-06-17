@@ -1,6 +1,7 @@
 from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Protocol
+from uuid import UUID
 
 from app.application.transactions.answering import AnsweringTransaction
 from app.application.transactions.retrieval import RetrievalTransaction
@@ -21,6 +22,7 @@ from app.providers.llm import (
     LLMGenerationRequest,
     LLMGenerationResponse,
     LLMProvider,
+    LLMProviderError,
 )
 
 
@@ -83,19 +85,52 @@ class GroundedAnswerService:
             )
 
         llm_started_at = utc_now()
-        llm_response = self._llm_provider.generate_answer(
-            LLMGenerationRequest(
-                question=request.question,
-                context_chunks=tuple(
-                    LLMContextChunk(
-                        rank=rank,
-                        content=chunk.content,
-                        heading_context=chunk.heading_context,
-                    )
-                    for rank, chunk in enumerate(retrieval_result.results, start=1)
+
+        try:
+            llm_response = self._llm_provider.generate_answer(
+                LLMGenerationRequest(
+                    question=request.question,
+                    context_chunks=tuple(
+                        LLMContextChunk(
+                            rank=rank,
+                            content=chunk.content,
+                            heading_context=chunk.heading_context,
+                        )
+                        for rank, chunk in enumerate(
+                            retrieval_result.results,
+                            start=1,
+                        )
+                    ),
                 ),
-            ),
-        )
+            )
+        except LLMProviderError as error:
+            llm_completed_at = utc_now()
+
+            self._persist_failed_llm_provider_call(
+                query_trace_id=retrieval_result.query_trace_id,
+                transaction=transaction,
+                error_message=str(error),
+                started_at=llm_started_at,
+                completed_at=llm_completed_at,
+            )
+
+            raise
+        except Exception as error:
+            llm_completed_at = utc_now()
+
+            self._persist_failed_llm_provider_call(
+                query_trace_id=retrieval_result.query_trace_id,
+                transaction=transaction,
+                error_message=(
+                    f"unexpected provider error: "
+                    f"{type(error).__name__}: {error}"
+                ),
+                started_at=llm_started_at,
+                completed_at=llm_completed_at,
+            )
+
+            raise LLMProviderError("unexpected LLM provider error") from error
+
         llm_completed_at = utc_now()
 
         citations = tuple(
@@ -183,3 +218,25 @@ class GroundedAnswerService:
         transaction.commit()
 
         return replace(grounded_answer, answer_id=answer_record.id)
+
+    def _persist_failed_llm_provider_call(
+        self,
+        *,
+        query_trace_id: UUID,
+        transaction: AnsweringTransaction,
+        error_message: str,
+        started_at: datetime,
+        completed_at: datetime,
+    ) -> None:
+        failed_provider_call = LLMProviderCallRecord.failed(
+            answer_id=None,
+            query_trace_id=query_trace_id,
+            provider=self._llm_provider.provider,
+            model_name=self._llm_provider.model_name,
+            error_message=error_message,
+            started_at=started_at,
+            completed_at=completed_at,
+        )
+
+        transaction.llm_provider_calls.save(failed_provider_call)
+        transaction.commit()

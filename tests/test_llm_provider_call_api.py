@@ -42,49 +42,6 @@ class FakeAnswerRecordRepository:
     ) -> list[AnswerRecord]:
         records = [self.answer]
 
-        return records[offset : offset + limit]
-
-    def save(self, answer: AnswerRecord) -> None:
-        self.answer = answer
-
-
-class FakeLLMProviderCallRecordRepository:
-    def __init__(self, answer_id: UUID) -> None:
-        started_at = datetime.now(UTC)
-        completed_at = started_at + timedelta(milliseconds=125)
-
-        self.record = LLMProviderCallRecord.succeeded(
-            answer_id=answer_id,
-            query_trace_id=uuid4(),
-            provider="fake",
-            model_name="fake-llm-v1",
-            prompt_tokens=10,
-            completion_tokens=5,
-            estimated_cost_usd=Decimal("0.0001"),
-            started_at=started_at,
-            completed_at=completed_at,
-        )
-
-    def get_by_id(
-        self,
-        provider_call_id: UUID,
-    ) -> LLMProviderCallRecord | None:
-        if provider_call_id != self.record.id:
-            return None
-
-        return self.record
-
-    def list_recent(
-        self,
-        *,
-        limit: int,
-        offset: int,
-        status: str | None = None,
-        provider: str | None = None,
-        model_name: str | None = None,
-    ) -> list[LLMProviderCallRecord]:
-        records = [self.record]
-
         if status is not None:
             records = [record for record in records if record.status.value == status]
 
@@ -98,17 +55,90 @@ class FakeLLMProviderCallRecordRepository:
 
         return records[offset : offset + limit]
 
+    def save(self, answer: AnswerRecord) -> None:
+        self.answer = answer
+
+
+class FakeLLMProviderCallRecordRepository:
+    def __init__(self, answer_id: UUID) -> None:
+        succeeded_started_at = datetime.now(UTC)
+        succeeded_completed_at = succeeded_started_at + timedelta(milliseconds=125)
+
+        failed_started_at = succeeded_started_at + timedelta(seconds=1)
+        failed_completed_at = failed_started_at + timedelta(milliseconds=75)
+
+        self.succeeded_record = LLMProviderCallRecord.succeeded(
+            answer_id=answer_id,
+            query_trace_id=uuid4(),
+            provider="fake",
+            model_name="fake-llm-v1",
+            prompt_tokens=10,
+            completion_tokens=5,
+            estimated_cost_usd=Decimal("0.0001"),
+            started_at=succeeded_started_at,
+            completed_at=succeeded_completed_at,
+        )
+        self.failed_record = LLMProviderCallRecord.failed(
+            answer_id=None,
+            query_trace_id=uuid4(),
+            provider="fake",
+            model_name="fake-llm-v1",
+            error_message="provider timeout",
+            started_at=failed_started_at,
+            completed_at=failed_completed_at,
+        )
+        self.records = {
+            self.succeeded_record.id: self.succeeded_record,
+            self.failed_record.id: self.failed_record,
+        }
+
+    def get_by_id(
+        self,
+        provider_call_id: UUID,
+    ) -> LLMProviderCallRecord | None:
+        return self.records.get(provider_call_id)
+
+    def list_recent(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        status: str | None = None,
+        provider: str | None = None,
+        model_name: str | None = None,
+    ) -> list[LLMProviderCallRecord]:
+        records = list(self.records.values())
+
+        if status is not None:
+            records = [record for record in records if record.status.value == status]
+
+        if provider is not None:
+            records = [record for record in records if record.provider == provider]
+
+        if model_name is not None:
+            records = [
+                record for record in records if record.model_name == model_name
+            ]
+
+        records = sorted(records, key=lambda record: record.started_at, reverse=True)
+
+        return records[offset : offset + limit]
+
     def list_by_answer_id(
         self,
         answer_id: UUID,
     ) -> list[LLMProviderCallRecord]:
-        if answer_id != self.record.answer_id:
-            return []
-
-        return [self.record]
+        return sorted(
+            [
+                record
+                for record in self.records.values()
+                if record.answer_id == answer_id
+            ],
+            key=lambda record: record.started_at,
+        )
 
     def save(self, record: LLMProviderCallRecord) -> None:
-        self.record = record
+        self.records[record.id] = record
 
 
 class FakeTransaction:
@@ -140,24 +170,63 @@ def test_list_llm_provider_calls_returns_recent_records() -> None:
 
     assert payload["limit"] == 20
     assert payload["offset"] == 0
+    assert len(payload["items"]) == 2
+
+    first_item = payload["items"][0]
+    second_item = payload["items"][1]
+
+    assert first_item["id"] == str(fake_transaction.llm_provider_calls.failed_record.id)
+    assert first_item["status"] == "failed"
+
+    assert second_item["id"] == str(
+        fake_transaction.llm_provider_calls.succeeded_record.id,
+    )
+    assert second_item["answer_id"] == str(fake_transaction.answer_id)
+    assert second_item["provider"] == "fake"
+    assert second_item["model_name"] == "fake-llm-v1"
+    assert second_item["status"] == "succeeded"
+    assert second_item["prompt_tokens"] == 10
+    assert second_item["completion_tokens"] == 5
+    assert second_item["total_tokens"] == 15
+    assert second_item["estimated_cost_usd"] == "0.0001"
+    assert second_item["latency_ms"] == 125
+    assert second_item["error_message"] is None
+
+
+def test_list_llm_provider_calls_filters_failed_records() -> None:
+    fake_transaction = FakeTransaction()
+
+    app = create_app()
+    app.dependency_overrides[get_answering_transaction] = lambda: fake_transaction
+
+    client = TestClient(app)
+
+    response = client.get("/api/v1/llm-provider-calls?status=failed")
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert payload["limit"] == 20
+    assert payload["offset"] == 0
     assert len(payload["items"]) == 1
 
     item = payload["items"][0]
 
-    assert item["id"] == str(fake_transaction.llm_provider_calls.record.id)
-    assert item["answer_id"] == str(fake_transaction.answer_id)
+    assert item["id"] == str(fake_transaction.llm_provider_calls.failed_record.id)
+    assert item["answer_id"] is None
     assert item["provider"] == "fake"
     assert item["model_name"] == "fake-llm-v1"
-    assert item["status"] == "succeeded"
-    assert item["prompt_tokens"] == 10
-    assert item["completion_tokens"] == 5
-    assert item["total_tokens"] == 15
-    assert item["estimated_cost_usd"] == "0.0001"
-    assert item["latency_ms"] == 125
-    assert item["error_message"] is None
+    assert item["status"] == "failed"
+    assert item["prompt_tokens"] == 0
+    assert item["completion_tokens"] == 0
+    assert item["total_tokens"] == 0
+    assert item["estimated_cost_usd"] == "0"
+    assert item["latency_ms"] == 75
+    assert item["error_message"] == "provider timeout"
 
 
-def test_get_llm_provider_call_returns_record_by_id() -> None:
+def test_get_llm_provider_call_returns_succeeded_record_by_id() -> None:
     fake_transaction = FakeTransaction()
 
     app = create_app()
@@ -166,18 +235,51 @@ def test_get_llm_provider_call_returns_record_by_id() -> None:
     client = TestClient(app)
 
     response = client.get(
-        f"/api/v1/llm-provider-calls/{fake_transaction.llm_provider_calls.record.id}",
+        "/api/v1/llm-provider-calls/"
+        f"{fake_transaction.llm_provider_calls.succeeded_record.id}",
     )
 
     assert response.status_code == 200
 
     payload = response.json()
 
-    assert payload["id"] == str(fake_transaction.llm_provider_calls.record.id)
+    assert payload["id"] == str(
+        fake_transaction.llm_provider_calls.succeeded_record.id,
+    )
     assert payload["answer_id"] == str(fake_transaction.answer_id)
     assert payload["provider"] == "fake"
     assert payload["model_name"] == "fake-llm-v1"
     assert payload["status"] == "succeeded"
+
+
+def test_get_llm_provider_call_returns_failed_record_by_id() -> None:
+    fake_transaction = FakeTransaction()
+
+    app = create_app()
+    app.dependency_overrides[get_answering_transaction] = lambda: fake_transaction
+
+    client = TestClient(app)
+
+    response = client.get(
+        "/api/v1/llm-provider-calls/"
+        f"{fake_transaction.llm_provider_calls.failed_record.id}",
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+
+    assert payload["id"] == str(fake_transaction.llm_provider_calls.failed_record.id)
+    assert payload["answer_id"] is None
+    assert payload["provider"] == "fake"
+    assert payload["model_name"] == "fake-llm-v1"
+    assert payload["status"] == "failed"
+    assert payload["prompt_tokens"] == 0
+    assert payload["completion_tokens"] == 0
+    assert payload["total_tokens"] == 0
+    assert payload["estimated_cost_usd"] == "0"
+    assert payload["latency_ms"] == 75
+    assert payload["error_message"] == "provider timeout"
 
 
 def test_get_llm_provider_call_returns_404_for_missing_record() -> None:
@@ -227,6 +329,7 @@ def test_list_llm_provider_calls_for_answer_returns_records() -> None:
     assert payload["offset"] == 0
     assert len(payload["items"]) == 1
     assert payload["items"][0]["answer_id"] == str(fake_transaction.answer_id)
+    assert payload["items"][0]["status"] == "succeeded"
 
 
 def test_list_llm_provider_calls_for_missing_answer_returns_404() -> None:
