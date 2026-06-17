@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
 
@@ -108,6 +109,30 @@ class InMemoryLLMProviderCallRecordRepository:
         provider_call_id: UUID,
     ) -> LLMProviderCallRecord | None:
         return self.records.get(provider_call_id)
+
+    def list_recent(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        status: str | None = None,
+        provider: str | None = None,
+        model_name: str | None = None,
+    ) -> list[LLMProviderCallRecord]:
+        records = list(self.records.values())
+
+        if status is not None:
+            records = [record for record in records if record.status.value == status]
+
+        if provider is not None:
+            records = [record for record in records if record.provider == provider]
+
+        if model_name is not None:
+            records = [record for record in records if record.model_name == model_name]
+
+        records = sorted(records, key=lambda record: record.started_at, reverse=True)
+
+        return records[offset : offset + limit]
 
     def list_by_answer_id(
         self,
@@ -421,6 +446,43 @@ def test_in_memory_answer_record_repository_lists_recent_records() -> None:
         top_k=5,
         provider="fake",
         model_name="fake-embedding-v1",
+    )
+
+    repository.save(first)
+    repository.save(second)
+
+    records = repository.list_recent(limit=10, offset=0)
+
+    assert [record.id for record in records] == [second.id, first.id]
+
+
+def test_in_memory_llm_provider_call_repository_lists_recent_records() -> None:
+    repository = InMemoryLLMProviderCallRecordRepository()
+
+    first_started_at = datetime.now(UTC)
+    second_started_at = first_started_at + timedelta(milliseconds=10)
+
+    first = LLMProviderCallRecord.succeeded(
+        answer_id=uuid4(),
+        query_trace_id=uuid4(),
+        provider="fake",
+        model_name="fake-llm-v1",
+        prompt_tokens=10,
+        completion_tokens=5,
+        estimated_cost_usd=Decimal("0"),
+        started_at=first_started_at,
+        completed_at=first_started_at + timedelta(milliseconds=1),
+    )
+    second = LLMProviderCallRecord.succeeded(
+        answer_id=uuid4(),
+        query_trace_id=uuid4(),
+        provider="fake",
+        model_name="fake-llm-v1",
+        prompt_tokens=12,
+        completion_tokens=6,
+        estimated_cost_usd=Decimal("0"),
+        started_at=second_started_at,
+        completed_at=second_started_at + timedelta(milliseconds=1),
     )
 
     repository.save(first)

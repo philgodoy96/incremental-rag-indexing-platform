@@ -10,6 +10,18 @@ class LLMProviderCallRecordRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def list_recent(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        status: str | None = None,
+        provider: str | None = None,
+        model_name: str | None = None,
+    ) -> list[LLMProviderCallRecord]:
+        raise NotImplementedError
+
+    @abstractmethod
     def list_by_answer_id(self, answer_id: UUID) -> list[LLMProviderCallRecord]:
         raise NotImplementedError
 

@@ -26,6 +26,39 @@ class SqlAlchemyLLMProviderCallRecordRepository(LLMProviderCallRecordRepository)
 
         return llm_provider_call_record_from_model(model)
 
+    def list_recent(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        status: str | None = None,
+        provider: str | None = None,
+        model_name: str | None = None,
+    ) -> list[LLMProviderCallRecord]:
+        statement = select(LLMProviderCallRecordModel)
+
+        if status is not None:
+            statement = statement.where(LLMProviderCallRecordModel.status == status)
+
+        if provider is not None:
+            statement = statement.where(LLMProviderCallRecordModel.provider == provider)
+
+        if model_name is not None:
+            statement = statement.where(
+                LLMProviderCallRecordModel.model_name == model_name,
+            )
+
+        statement = (
+            statement.order_by(LLMProviderCallRecordModel.started_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+
+        return [
+            llm_provider_call_record_from_model(model)
+            for model in self._session.execute(statement).scalars().all()
+        ]
+
     def list_by_answer_id(self, answer_id: UUID) -> list[LLMProviderCallRecord]:
         statement: Select[tuple[LLMProviderCallRecordModel]] = (
             select(LLMProviderCallRecordModel)
