@@ -8,6 +8,12 @@ def ensure_not_blank(value: str, field_name: str) -> None:
         raise ValueError(f"{field_name} must not be blank")
 
 
+class LLMProviderError(Exception):
+    def __init__(self, message: str) -> None:
+        ensure_not_blank(message, "message")
+        super().__init__(message)
+
+
 @dataclass(frozen=True, slots=True)
 class LLMContextChunk:
     rank: int
@@ -81,5 +87,13 @@ class LLMGenerationResponse:
 
 
 class LLMProvider(Protocol):
+    @property
+    def provider(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def model_name(self) -> str:
+        raise NotImplementedError
+
     def generate_answer(self, request: LLMGenerationRequest) -> LLMGenerationResponse:
         raise NotImplementedError

@@ -7,8 +7,14 @@ from app.providers.llm import (
     LLMContextChunk,
     LLMGenerationRequest,
     LLMGenerationResponse,
+    LLMProviderError,
     LLMUsageMetadata,
 )
+
+
+def test_llm_provider_error_rejects_blank_message() -> None:
+    with pytest.raises(ValueError, match="message must not be blank"):
+        LLMProviderError(" ")
 
 
 def test_llm_context_chunk_rejects_invalid_rank() -> None:
@@ -71,6 +77,13 @@ def test_llm_generation_response_rejects_blank_answer() -> None:
                 latency_ms=1,
             ),
         )
+
+
+def test_fake_llm_provider_exposes_provider_identity() -> None:
+    provider = FakeLLMProvider(provider="fake-provider", model_name="fake-model")
+
+    assert provider.provider == "fake-provider"
+    assert provider.model_name == "fake-model"
 
 
 def test_fake_llm_provider_generates_deterministic_answer_from_first_chunk() -> None:

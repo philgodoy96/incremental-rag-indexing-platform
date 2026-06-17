@@ -19,6 +19,14 @@ class FakeLLMProvider(LLMProvider):
         self._provider = provider
         self._model_name = model_name
 
+    @property
+    def provider(self) -> str:
+        return self._provider
+
+    @property
+    def model_name(self) -> str:
+        return self._model_name
+
     def generate_answer(self, request: LLMGenerationRequest) -> LLMGenerationResponse:
         started_at = perf_counter()
 
