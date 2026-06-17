@@ -44,6 +44,7 @@ class RetrievedChunkResponse(BaseModel):
 
 
 class SemanticSearchResponse(BaseModel):
+    query_trace_id: UUID
     query: str
     top_k: int
     provider: str
@@ -73,7 +74,11 @@ def search_retrieval_index(
         transaction=transaction,
     )
 
+    if result.query_trace_id is None:
+        raise RuntimeError("query trace id is required")
+
     return SemanticSearchResponse(
+        query_trace_id=result.query_trace_id,
         query=result.query,
         top_k=result.top_k,
         provider=result.provider,

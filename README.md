@@ -202,6 +202,9 @@ Current status:
 - Cross-version embedding reuse introduced
 - Vector index current projection updates introduced
 - Semantic retrieval API introduced
+- Semantic retrieval now returns query_trace_id
+- Query trace persistence introduced
+- QueryTrace and QueryTraceHit domain models introduced
 - Active vector similarity search introduced
 - Semantic retrieval domain models introduced
 - VectorIndexEntry persistence introduced
