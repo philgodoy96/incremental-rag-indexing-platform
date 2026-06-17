@@ -1,7 +1,12 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from uuid import UUID
 
 from app.domain.llm_observability.entities import LLMProviderCallRecord
+from app.domain.llm_observability.usage_reports import (
+    LLMUsageByModelSummary,
+    LLMUsageSummary,
+)
 
 
 class LLMProviderCallRecordRepository(ABC):
@@ -27,4 +32,28 @@ class LLMProviderCallRecordRepository(ABC):
 
     @abstractmethod
     def save(self, record: LLMProviderCallRecord) -> None:
+        raise NotImplementedError
+
+
+class LLMUsageReportRepository(ABC):
+    @abstractmethod
+    def summarize(
+        self,
+        *,
+        started_at_from: datetime | None = None,
+        started_at_to: datetime | None = None,
+        provider: str | None = None,
+        model_name: str | None = None,
+    ) -> LLMUsageSummary:
+        raise NotImplementedError
+
+    @abstractmethod
+    def summarize_by_model(
+        self,
+        *,
+        started_at_from: datetime | None = None,
+        started_at_to: datetime | None = None,
+        provider: str | None = None,
+        model_name: str | None = None,
+    ) -> list[LLMUsageByModelSummary]:
         raise NotImplementedError

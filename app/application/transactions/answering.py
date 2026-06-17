@@ -7,6 +7,7 @@ from app.domain.answering.repositories import (
 )
 from app.domain.llm_observability.repositories import (
     LLMProviderCallRecordRepository,
+    LLMUsageReportRepository,
 )
 
 
@@ -14,3 +15,4 @@ class AnsweringTransaction(RetrievalTransaction, Protocol):
     answer_records: AnswerRecordRepository
     answer_citation_records: AnswerCitationRecordRepository
     llm_provider_calls: LLMProviderCallRecordRepository
+    llm_usage_reports: LLMUsageReportRepository
