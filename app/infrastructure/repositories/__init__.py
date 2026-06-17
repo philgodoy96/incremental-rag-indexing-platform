@@ -9,6 +9,10 @@ from app.infrastructure.repositories.sqlalchemy_document_repositories import (
     SqlAlchemySourceDocumentRepository,
     SqlAlchemyVectorIndexEntryRepository,
 )
+from app.infrastructure.repositories.sqlalchemy_retrieval_repositories import (
+    SqlAlchemyQueryTraceHitRepository,
+    SqlAlchemyQueryTraceRepository,
+)
 
 __all__ = [
     "SqlAlchemyChunkEmbeddingLinkRepository",
@@ -17,6 +21,8 @@ __all__ = [
     "SqlAlchemyEmbeddingCostRecordRepository",
     "SqlAlchemyEmbeddingRecordRepository",
     "SqlAlchemyIngestionRunRepository",
+    "SqlAlchemyQueryTraceRepository",
+    "SqlAlchemyQueryTraceHitRepository",
     "SqlAlchemySectionVersionRepository",
     "SqlAlchemySourceDocumentRepository",
     "SqlAlchemyVectorIndexEntryRepository",
