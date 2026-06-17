@@ -13,6 +13,10 @@ from app.infrastructure.repositories.sqlalchemy_document_repositories import (
     SqlAlchemySourceDocumentRepository,
     SqlAlchemyVectorIndexEntryRepository,
 )
+from app.infrastructure.repositories.sqlalchemy_evaluation_repositories import (
+    SqlAlchemyRetrievalEvaluationCaseRepository,
+    SqlAlchemyRetrievalEvaluationCaseResultRepository,
+)
 from app.infrastructure.repositories.sqlalchemy_llm_observability_repositories import (
     SqlAlchemyLLMProviderCallRecordRepository,
     SqlAlchemyLLMUsageReportRepository,
@@ -35,6 +39,8 @@ __all__ = [
     "SqlAlchemyLLMUsageReportRepository",
     "SqlAlchemyQueryTraceRepository",
     "SqlAlchemyQueryTraceHitRepository",
+    "SqlAlchemyRetrievalEvaluationCaseRepository",
+    "SqlAlchemyRetrievalEvaluationCaseResultRepository",
     "SqlAlchemySectionVersionRepository",
     "SqlAlchemySourceDocumentRepository",
     "SqlAlchemyVectorIndexEntryRepository",

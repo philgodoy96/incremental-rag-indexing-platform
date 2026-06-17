@@ -5,6 +5,10 @@ from app.domain.answering.repositories import (
     AnswerRecordRepository,
 )
 from app.domain.documents.repositories import VectorIndexEntryRepository
+from app.domain.evaluation.repositories import (
+    RetrievalEvaluationCaseRepository,
+    RetrievalEvaluationCaseResultRepository,
+)
 from app.domain.llm_observability.repositories import (
     LLMProviderCallRecordRepository,
     LLMUsageReportRepository,
@@ -20,6 +24,8 @@ from app.infrastructure.repositories import (
     SqlAlchemyLLMUsageReportRepository,
     SqlAlchemyQueryTraceHitRepository,
     SqlAlchemyQueryTraceRepository,
+    SqlAlchemyRetrievalEvaluationCaseRepository,
+    SqlAlchemyRetrievalEvaluationCaseResultRepository,
     SqlAlchemyVectorIndexEntryRepository,
 )
 
@@ -36,6 +42,12 @@ class SqlAlchemyRetrievalTransaction:
         )
         self.query_trace_hits: QueryTraceHitRepository = (
             SqlAlchemyQueryTraceHitRepository(session)
+        )
+        self.retrieval_evaluation_cases: RetrievalEvaluationCaseRepository = (
+            SqlAlchemyRetrievalEvaluationCaseRepository(session)
+        )
+        self.retrieval_evaluation_case_results: RetrievalEvaluationCaseResultRepository = (
+            SqlAlchemyRetrievalEvaluationCaseResultRepository(session)
         )
 
         self.answer_records: AnswerRecordRepository = SqlAlchemyAnswerRecordRepository(

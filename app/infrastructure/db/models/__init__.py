@@ -13,6 +13,10 @@ from app.infrastructure.db.models.document_models import (
     SourceDocumentModel,
     VectorIndexEntryModel,
 )
+from app.infrastructure.db.models.evaluation_models import (
+    RetrievalEvaluationCaseModel,
+    RetrievalEvaluationCaseResultModel,
+)
 from app.infrastructure.db.models.llm_observability_models import (
     LLMProviderCallRecordModel,
 )
@@ -33,6 +37,8 @@ __all__ = [
     "LLMProviderCallRecordModel",
     "QueryTraceModel",
     "QueryTraceHitModel",
+    "RetrievalEvaluationCaseModel",
+    "RetrievalEvaluationCaseResultModel",
     "SectionVersionModel",
     "SourceDocumentModel",
     "VectorIndexEntryModel",

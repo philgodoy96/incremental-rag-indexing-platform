@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.routes.answers import router as answers_router
+from app.api.routes.evaluation import router as evaluation_router
 from app.api.routes.health import router as health_router
 from app.api.routes.ingestion import router as ingestion_router
 from app.api.routes.llm_provider_calls import router as llm_provider_calls_router
@@ -50,6 +51,12 @@ def create_app() -> FastAPI:
         answers_router,
         prefix=settings.api_v1_prefix,
         tags=["answers"],
+    )
+
+    app.include_router(
+        evaluation_router,
+        prefix=settings.api_v1_prefix,
+        tags=["evaluation"],
     )
 
     app.include_router(
