@@ -210,6 +210,10 @@ Current status:
 - Grounded answer generation now persists LLM provider call records
 - LLM provider calls can now be inspected by answer_id
 - Failed provider calls are exposed through the LLM Provider Call Read API
+- LLM usage can now be summarized by period, provider, and model
+- LLM Usage Reporting API introduced
+- LLM usage reporting repository introduced
+- LLM usage reporting domain models introduced
 - Failed LLM provider calls are now persisted during answer generation
 - LLM provider identity and LLMProviderError introduced
 - Persisted LLM provider calls can now be listed and inspected by ID
