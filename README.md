@@ -211,6 +211,11 @@ Current status:
 - LLM provider calls can now be inspected by answer_id
 - Failed provider calls are exposed through the LLM Provider Call Read API
 - LLM usage can now be summarized by period, provider, and model
+- Retrieval evaluation run API introduced
+- Retrieval evaluation case and result APIs introduced
+- Retrieval evaluation runner introduced
+- Retrieval evaluation persistence introduced
+- Retrieval evaluation domain models introduced
 - LLM Usage Reporting API introduced
 - LLM usage reporting repository introduced
 - LLM usage reporting domain models introduced
