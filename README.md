@@ -201,6 +201,9 @@ Current status:
 - EmbeddingRecord and EmbeddingCostRecord persistence introduced
 - Cross-version embedding reuse introduced
 - Vector index current projection updates introduced
+- Semantic retrieval API introduced
+- Active vector similarity search introduced
+- Semantic retrieval domain models introduced
 - VectorIndexEntry persistence introduced
 - ChunkEmbeddingLink persistence introduced
 

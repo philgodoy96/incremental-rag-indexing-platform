@@ -1,3 +1,5 @@
+from typing import Any
+from typing import cast as typing_cast
 from uuid import UUID
 
 from sqlalchemy import Select, select
@@ -26,6 +28,7 @@ from app.domain.documents.repositories import (
     SourceDocumentRepository,
     VectorIndexEntryRepository,
 )
+from app.domain.retrieval.entities import RetrievedChunk
 from app.infrastructure.db.mappers.document_mappers import (
     chunk_embedding_link_from_model,
     chunk_embedding_link_to_model,
@@ -301,6 +304,52 @@ class SqlAlchemyVectorIndexEntryRepository(VectorIndexEntryRepository):
         return [
             vector_index_entry_from_model(model)
             for model in self._session.execute(statement).scalars().all()
+        ]
+
+    def search_active_by_vector(
+        self,
+        *,
+        query_vector: tuple[float, ...],
+        provider: str,
+        model_name: str,
+        top_k: int,
+    ) -> list[RetrievedChunk]:
+        distance_expression = typing_cast(
+            Any,
+            VectorIndexEntryModel.embedding_vector,
+        ).l2_distance(list(query_vector)).label("distance")
+
+        statement = (
+            select(VectorIndexEntryModel, distance_expression)
+            .where(
+                VectorIndexEntryModel.is_active.is_(True),
+                VectorIndexEntryModel.provider == provider,
+                VectorIndexEntryModel.model_name == model_name,
+                VectorIndexEntryModel.dimensions == len(query_vector),
+            )
+            .order_by(distance_expression)
+            .limit(top_k)
+        )
+
+        rows = self._session.execute(statement).all()
+
+        return [
+            RetrievedChunk(
+                vector_index_entry_id=model.id,
+                source_document_id=model.source_document_id,
+                document_version_id=model.document_version_id,
+                section_version_id=model.section_version_id,
+                chunk_version_id=model.chunk_version_id,
+                embedding_record_id=model.embedding_record_id,
+                stable_section_key=model.stable_section_key,
+                chunk_index=model.chunk_index,
+                provider=model.provider,
+                model_name=model.model_name,
+                content=model.content,
+                heading_context=tuple(model.heading_context),
+                distance=float(distance),
+            )
+            for model, distance in rows
         ]
 
     def save(self, entry: VectorIndexEntry) -> None:

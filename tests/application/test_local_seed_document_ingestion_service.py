@@ -28,6 +28,7 @@ from app.domain.documents.repositories import (
     SourceDocumentRepository,
     VectorIndexEntryRepository,
 )
+from app.domain.retrieval.entities import RetrievedChunk
 
 
 class InMemorySourceDocumentRepository(SourceDocumentRepository):
@@ -245,6 +246,53 @@ class InMemoryVectorIndexEntryRepository(VectorIndexEntryRepository):
             entry
             for entry in self.entries.values()
             if entry.source_document_id == source_document_id and entry.is_active
+        ]
+
+    def search_active_by_vector(
+        self,
+        *,
+        query_vector: tuple[float, ...],
+        provider: str,
+        model_name: str,
+        top_k: int,
+    ) -> list[RetrievedChunk]:
+        candidates = [
+            entry
+            for entry in self.entries.values()
+            if (
+                entry.is_active
+                and entry.provider == provider
+                and entry.model_name == model_name
+                and entry.dimensions == len(query_vector)
+            )
+        ]
+
+        def calculate_distance(entry: VectorIndexEntry) -> float:
+            return float(
+                sum(
+                    (left - right) ** 2
+                    for left, right in zip(entry.embedding_vector, query_vector, strict=True)
+                )
+                ** 0.5
+            )
+
+        return [
+            RetrievedChunk(
+                vector_index_entry_id=entry.id,
+                source_document_id=entry.source_document_id,
+                document_version_id=entry.document_version_id,
+                section_version_id=entry.section_version_id,
+                chunk_version_id=entry.chunk_version_id,
+                embedding_record_id=entry.embedding_record_id,
+                stable_section_key=entry.stable_section_key,
+                chunk_index=entry.chunk_index,
+                provider=entry.provider,
+                model_name=entry.model_name,
+                content=entry.content,
+                heading_context=entry.heading_context,
+                distance=calculate_distance(entry),
+            )
+            for entry in sorted(candidates, key=calculate_distance)[:top_k]
         ]
 
     def save(self, entry: VectorIndexEntry) -> None:

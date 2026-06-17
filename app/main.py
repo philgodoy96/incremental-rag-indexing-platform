@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app.api.routes.health import router as health_router
 from app.api.routes.ingestion import router as ingestion_router
 from app.api.routes.readiness import router as readiness_router
+from app.api.routes.retrieval import router as retrieval_router
 from app.config.settings import get_settings
 
 
@@ -34,6 +35,12 @@ def create_app() -> FastAPI:
         ingestion_router,
         prefix=settings.api_v1_prefix,
         tags=["ingestion"],
+    )
+
+    app.include_router(
+        retrieval_router,
+        prefix=settings.api_v1_prefix,
+        tags=["retrieval"],
     )
 
     return app

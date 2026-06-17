@@ -13,6 +13,7 @@ from app.domain.documents.entities import (
     VectorIndexEntry,
 )
 from app.domain.documents.enums import SourceSystem
+from app.domain.retrieval.entities import RetrievedChunk
 
 
 class SourceDocumentRepository(ABC):
@@ -139,6 +140,17 @@ class VectorIndexEntryRepository(ABC):
         self,
         source_document_id: UUID,
     ) -> list[VectorIndexEntry]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def search_active_by_vector(
+        self,
+        *,
+        query_vector: tuple[float, ...],
+        provider: str,
+        model_name: str,
+        top_k: int,
+    ) -> list[RetrievedChunk]:
         raise NotImplementedError
 
     @abstractmethod
