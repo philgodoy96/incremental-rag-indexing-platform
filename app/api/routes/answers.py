@@ -40,6 +40,7 @@ class GroundedAnswerCitationResponse(BaseModel):
 
 
 class GroundedAnswerApiResponse(BaseModel):
+    answer_id: UUID
     question: str
     answer: str
     status: GroundedAnswerStatus
@@ -69,7 +70,11 @@ def create_grounded_answer(
         transaction=transaction,
     )
 
+    if answer.answer_id is None:
+        raise RuntimeError("answer id is required")
+
     return GroundedAnswerApiResponse(
+        answer_id=answer.answer_id,
         question=answer.question,
         answer=answer.answer,
         status=answer.status,
