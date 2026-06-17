@@ -239,12 +239,12 @@ def get_answer(
 @router.get("/{answer_id}/llm-provider-calls", response_model=LLMProviderCallListResponse)
 def list_llm_provider_calls_for_answer(
     answer_id: UUID,
-    limit: int = Query(default=20, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
     transaction: Annotated[
         AnsweringTransaction,
         Depends(get_answering_transaction),
     ],
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
 ) -> LLMProviderCallListResponse:
     answer = transaction.answer_records.get_by_id(answer_id)
 
