@@ -5,6 +5,9 @@ from app.domain.answering.repositories import (
     AnswerRecordRepository,
 )
 from app.domain.documents.repositories import VectorIndexEntryRepository
+from app.domain.llm_observability.repositories import (
+    LLMProviderCallRecordRepository,
+)
 from app.domain.retrieval.repositories import (
     QueryTraceHitRepository,
     QueryTraceRepository,
@@ -12,6 +15,7 @@ from app.domain.retrieval.repositories import (
 from app.infrastructure.repositories import (
     SqlAlchemyAnswerCitationRecordRepository,
     SqlAlchemyAnswerRecordRepository,
+    SqlAlchemyLLMProviderCallRecordRepository,
     SqlAlchemyQueryTraceHitRepository,
     SqlAlchemyQueryTraceRepository,
     SqlAlchemyVectorIndexEntryRepository,
@@ -37,6 +41,9 @@ class SqlAlchemyRetrievalTransaction:
         )
         self.answer_citation_records: AnswerCitationRecordRepository = (
             SqlAlchemyAnswerCitationRecordRepository(session)
+        )
+        self.llm_provider_calls: LLMProviderCallRecordRepository = (
+            SqlAlchemyLLMProviderCallRecordRepository(session)
         )
 
     def flush(self) -> None:
