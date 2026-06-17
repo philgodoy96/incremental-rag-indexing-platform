@@ -206,6 +206,9 @@ Current status:
 - Retrieval traces can now be listed and inspected by ID
 - Grounded Answer API introduced at POST /api/v1/answers
 - Grounded Answer API now returns answer_id
+- Persisted answers can now be listed and inspected by ID
+- Answer Read API introduced
+- Answer listing repository methods introduced
 - Grounded answers are now persisted
 - AnswerRecord and AnswerCitationRecord persistence introduced
 - Answer persistence domain models introduced
