@@ -10,6 +10,18 @@ class QueryTraceRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def list_recent(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        status: str | None = None,
+        provider: str | None = None,
+        model_name: str | None = None,
+    ) -> list[QueryTrace]:
+        raise NotImplementedError
+
+    @abstractmethod
     def save(self, trace: QueryTrace) -> None:
         raise NotImplementedError
 
