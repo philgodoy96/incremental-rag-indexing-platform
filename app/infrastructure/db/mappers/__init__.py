@@ -24,6 +24,10 @@ from app.infrastructure.db.mappers.document_mappers import (
     vector_index_entry_from_model,
     vector_index_entry_to_model,
 )
+from app.infrastructure.db.mappers.llm_observability_mappers import (
+    llm_provider_call_record_from_model,
+    llm_provider_call_record_to_model,
+)
 from app.infrastructure.db.mappers.retrieval_mappers import (
     query_trace_from_model,
     query_trace_hit_from_model,
@@ -48,6 +52,8 @@ __all__ = [
     "embedding_record_to_model",
     "ingestion_run_from_model",
     "ingestion_run_to_model",
+    "llm_provider_call_record_to_model",
+    "llm_provider_call_record_from_model",
     "query_trace_to_model",
     "query_trace_from_model",
     "query_trace_hit_to_model",
