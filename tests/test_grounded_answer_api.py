@@ -3,8 +3,8 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import (
+    get_answering_transaction,
     get_grounded_answer_service,
-    get_retrieval_transaction,
 )
 from app.domain.answering.entities import (
     GroundedAnswer,
@@ -62,7 +62,7 @@ def test_create_grounded_answer_returns_answer_with_citations() -> None:
 
     app = create_app()
     app.dependency_overrides[get_grounded_answer_service] = lambda: fake_service
-    app.dependency_overrides[get_retrieval_transaction] = lambda: FakeTransaction()
+    app.dependency_overrides[get_answering_transaction] = lambda: FakeTransaction()
 
     client = TestClient(app)
 
@@ -109,7 +109,7 @@ def test_create_grounded_answer_returns_insufficient_context() -> None:
 
     app = create_app()
     app.dependency_overrides[get_grounded_answer_service] = lambda: fake_service
-    app.dependency_overrides[get_retrieval_transaction] = lambda: FakeTransaction()
+    app.dependency_overrides[get_answering_transaction] = lambda: FakeTransaction()
 
     client = TestClient(app)
 
@@ -143,7 +143,7 @@ def test_create_grounded_answer_validates_blank_question() -> None:
 
     app = create_app()
     app.dependency_overrides[get_grounded_answer_service] = lambda: fake_service
-    app.dependency_overrides[get_retrieval_transaction] = lambda: FakeTransaction()
+    app.dependency_overrides[get_answering_transaction] = lambda: FakeTransaction()
 
     client = TestClient(app)
 
@@ -170,7 +170,7 @@ def test_create_grounded_answer_validates_top_k() -> None:
 
     app = create_app()
     app.dependency_overrides[get_grounded_answer_service] = lambda: fake_service
-    app.dependency_overrides[get_retrieval_transaction] = lambda: FakeTransaction()
+    app.dependency_overrides[get_answering_transaction] = lambda: FakeTransaction()
 
     client = TestClient(app)
 

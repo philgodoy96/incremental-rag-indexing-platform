@@ -80,6 +80,7 @@ class GroundedAnswer:
     status: GroundedAnswerStatus
     query_trace_id: UUID
     citations: tuple[GroundedAnswerCitation, ...]
+    answer_id: UUID | None = None
 
     def __post_init__(self) -> None:
         ensure_not_blank(self.question, "question")
@@ -101,6 +102,7 @@ class GroundedAnswer:
         answer: str,
         query_trace_id: UUID,
         citations: tuple[GroundedAnswerCitation, ...],
+        answer_id: UUID | None = None,
     ) -> "GroundedAnswer":
         return cls(
             question=question,
@@ -108,6 +110,7 @@ class GroundedAnswer:
             status=GroundedAnswerStatus.ANSWERED,
             query_trace_id=query_trace_id,
             citations=citations,
+            answer_id=answer_id,
         )
 
     @classmethod
@@ -116,6 +119,7 @@ class GroundedAnswer:
         *,
         question: str,
         query_trace_id: UUID,
+        answer_id: UUID | None = None,
     ) -> "GroundedAnswer":
         return cls(
             question=question,
@@ -126,6 +130,7 @@ class GroundedAnswer:
             status=GroundedAnswerStatus.INSUFFICIENT_CONTEXT,
             query_trace_id=query_trace_id,
             citations=(),
+            answer_id=answer_id,
         )
 
 
