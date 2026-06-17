@@ -3,8 +3,8 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import (
+    get_answering_transaction,
     get_grounded_answer_service,
-    get_retrieval_transaction,
 )
 from app.domain.answering.entities import (
     GroundedAnswer,
@@ -57,12 +57,13 @@ def test_create_grounded_answer_returns_answer_with_citations() -> None:
             answer="Project Atlas is at risk.",
             query_trace_id=uuid4(),
             citations=(make_citation(),),
+            answer_id=uuid4(),
         ),
     )
 
     app = create_app()
     app.dependency_overrides[get_grounded_answer_service] = lambda: fake_service
-    app.dependency_overrides[get_retrieval_transaction] = lambda: FakeTransaction()
+    app.dependency_overrides[get_answering_transaction] = lambda: FakeTransaction()
 
     client = TestClient(app)
 
@@ -83,6 +84,7 @@ def test_create_grounded_answer_returns_answer_with_citations() -> None:
     assert payload["question"] == "What is Project Atlas status?"
     assert payload["answer"] == "Project Atlas is at risk."
     assert payload["status"] == "answered"
+    assert payload["answer_id"]
     assert payload["query_trace_id"]
     assert len(payload["citations"]) == 1
     assert payload["citations"][0]["rank"] == 1
@@ -104,12 +106,13 @@ def test_create_grounded_answer_returns_insufficient_context() -> None:
         GroundedAnswer.insufficient_context(
             question="What is Project Phoenix budget?",
             query_trace_id=uuid4(),
+            answer_id=uuid4(),
         ),
     )
 
     app = create_app()
     app.dependency_overrides[get_grounded_answer_service] = lambda: fake_service
-    app.dependency_overrides[get_retrieval_transaction] = lambda: FakeTransaction()
+    app.dependency_overrides[get_answering_transaction] = lambda: FakeTransaction()
 
     client = TestClient(app)
 
@@ -129,6 +132,7 @@ def test_create_grounded_answer_returns_insufficient_context() -> None:
 
     assert payload["question"] == "What is Project Phoenix budget?"
     assert payload["status"] == "insufficient_context"
+    assert payload["answer_id"]
     assert payload["citations"] == []
     assert "not have enough retrieved context" in payload["answer"]
 
@@ -138,12 +142,13 @@ def test_create_grounded_answer_validates_blank_question() -> None:
         GroundedAnswer.insufficient_context(
             question="unused",
             query_trace_id=uuid4(),
+            answer_id=uuid4(),
         ),
     )
 
     app = create_app()
     app.dependency_overrides[get_grounded_answer_service] = lambda: fake_service
-    app.dependency_overrides[get_retrieval_transaction] = lambda: FakeTransaction()
+    app.dependency_overrides[get_answering_transaction] = lambda: FakeTransaction()
 
     client = TestClient(app)
 
@@ -165,12 +170,13 @@ def test_create_grounded_answer_validates_top_k() -> None:
         GroundedAnswer.insufficient_context(
             question="unused",
             query_trace_id=uuid4(),
+            answer_id=uuid4(),
         ),
     )
 
     app = create_app()
     app.dependency_overrides[get_grounded_answer_service] = lambda: fake_service
-    app.dependency_overrides[get_retrieval_transaction] = lambda: FakeTransaction()
+    app.dependency_overrides[get_answering_transaction] = lambda: FakeTransaction()
 
     client = TestClient(app)
 

@@ -1,7 +1,11 @@
+from dataclasses import replace
 from typing import Protocol
 
+from app.application.transactions.answering import AnsweringTransaction
 from app.application.transactions.retrieval import RetrievalTransaction
 from app.domain.answering.entities import (
+    AnswerCitationRecord,
+    AnswerRecord,
     GroundedAnswer,
     GroundedAnswerCitation,
     GroundedAnswerRequest,
@@ -41,7 +45,7 @@ class GroundedAnswerService:
         self,
         *,
         request: GroundedAnswerRequest,
-        transaction: RetrievalTransaction,
+        transaction: AnsweringTransaction,
     ) -> GroundedAnswer:
         retrieval_result = self._retriever.search(
             query=SemanticSearchQuery(
@@ -57,9 +61,15 @@ class GroundedAnswerService:
             raise RuntimeError("query trace id is required")
 
         if not retrieval_result.results:
-            return GroundedAnswer.insufficient_context(
+            grounded_answer = GroundedAnswer.insufficient_context(
                 question=request.question,
                 query_trace_id=retrieval_result.query_trace_id,
+            )
+
+            return self._persist_answer(
+                grounded_answer=grounded_answer,
+                request=request,
+                transaction=transaction,
             )
 
         llm_response = self._llm_provider.generate_answer(
@@ -94,9 +104,42 @@ class GroundedAnswerService:
             for rank, chunk in enumerate(retrieval_result.results, start=1)
         )
 
-        return GroundedAnswer.answered(
+        grounded_answer = GroundedAnswer.answered(
             question=request.question,
             answer=llm_response.answer,
             query_trace_id=retrieval_result.query_trace_id,
             citations=citations,
         )
+
+        return self._persist_answer(
+            grounded_answer=grounded_answer,
+            request=request,
+            transaction=transaction,
+        )
+
+    def _persist_answer(
+        self,
+        *,
+        grounded_answer: GroundedAnswer,
+        request: GroundedAnswerRequest,
+        transaction: AnsweringTransaction,
+    ) -> GroundedAnswer:
+        answer_record = AnswerRecord.from_grounded_answer(
+            grounded_answer=grounded_answer,
+            request=request,
+        )
+
+        citation_records = [
+            AnswerCitationRecord.from_grounded_citation(
+                answer_id=answer_record.id,
+                citation=citation,
+            )
+            for citation in grounded_answer.citations
+        ]
+
+        transaction.answer_records.save(answer_record)
+        transaction.flush()
+        transaction.answer_citation_records.save_many(citation_records)
+        transaction.commit()
+
+        return replace(grounded_answer, answer_id=answer_record.id)

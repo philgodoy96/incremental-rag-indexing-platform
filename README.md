@@ -205,6 +205,10 @@ Current status:
 - Semantic retrieval now returns query_trace_id
 - Retrieval traces can now be listed and inspected by ID
 - Grounded Answer API introduced at POST /api/v1/answers
+- Grounded Answer API now returns answer_id
+- Grounded answers are now persisted
+- AnswerRecord and AnswerCitationRecord persistence introduced
+- Answer persistence domain models introduced
 - Grounded answer service introduced
 - Fake LLM provider boundary introduced
 - Grounded answer domain models introduced

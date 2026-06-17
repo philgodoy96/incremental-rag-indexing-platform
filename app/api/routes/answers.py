@@ -5,11 +5,11 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.api.dependencies import (
+    get_answering_transaction,
     get_grounded_answer_service,
-    get_retrieval_transaction,
 )
 from app.application.services.grounded_answer_service import GroundedAnswerService
-from app.application.transactions.retrieval import RetrievalTransaction
+from app.application.transactions.answering import AnsweringTransaction
 from app.domain.answering.entities import GroundedAnswerRequest
 from app.domain.answering.enums import GroundedAnswerStatus
 from app.domain.retrieval.entities import MAX_RETRIEVAL_TOP_K
@@ -40,6 +40,7 @@ class GroundedAnswerCitationResponse(BaseModel):
 
 
 class GroundedAnswerApiResponse(BaseModel):
+    answer_id: UUID
     question: str
     answer: str
     status: GroundedAnswerStatus
@@ -55,8 +56,8 @@ def create_grounded_answer(
         Depends(get_grounded_answer_service),
     ],
     transaction: Annotated[
-        RetrievalTransaction,
-        Depends(get_retrieval_transaction),
+        AnsweringTransaction,
+        Depends(get_answering_transaction),
     ],
 ) -> GroundedAnswerApiResponse:
     answer = service.answer(
@@ -69,7 +70,11 @@ def create_grounded_answer(
         transaction=transaction,
     )
 
+    if answer.answer_id is None:
+        raise RuntimeError("answer id is required")
+
     return GroundedAnswerApiResponse(
+        answer_id=answer.answer_id,
         question=answer.question,
         answer=answer.answer,
         status=answer.status,

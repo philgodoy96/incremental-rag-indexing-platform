@@ -3,6 +3,8 @@ from uuid import uuid4
 import pytest
 
 from app.domain.answering.entities import (
+    AnswerCitationRecord,
+    AnswerRecord,
     GroundedAnswer,
     GroundedAnswerCitation,
     GroundedAnswerRequest,
@@ -106,3 +108,106 @@ def test_insufficient_context_answer_has_no_citations() -> None:
     assert answer.status == GroundedAnswerStatus.INSUFFICIENT_CONTEXT
     assert answer.citations == ()
     assert "not have enough retrieved context" in answer.answer
+
+
+def test_answer_record_can_be_created_from_grounded_answer() -> None:
+    request = GroundedAnswerRequest(
+        question="What is Project Atlas status?",
+        top_k=5,
+        provider="fake",
+        model_name="fake-embedding-v1",
+    )
+    grounded_answer = GroundedAnswer.answered(
+        question="What is Project Atlas status?",
+        answer="Project Atlas is at risk.",
+        query_trace_id=uuid4(),
+        citations=(make_citation(),),
+    )
+
+    record = AnswerRecord.from_grounded_answer(
+        grounded_answer=grounded_answer,
+        request=request,
+    )
+
+    assert record.question == grounded_answer.question
+    assert record.answer == grounded_answer.answer
+    assert record.status == GroundedAnswerStatus.ANSWERED
+    assert record.query_trace_id == grounded_answer.query_trace_id
+    assert record.top_k == 5
+    assert record.provider == "fake"
+    assert record.model_name == "fake-embedding-v1"
+
+
+def test_answer_record_rejects_blank_answer() -> None:
+    with pytest.raises(ValueError, match="answer must not be blank"):
+        AnswerRecord(
+            id=uuid4(),
+            question="What is Project Atlas status?",
+            answer=" ",
+            status=GroundedAnswerStatus.ANSWERED,
+            query_trace_id=uuid4(),
+            top_k=5,
+            provider="fake",
+            model_name="fake-embedding-v1",
+        )
+
+
+def test_answer_citation_record_can_be_created_from_grounded_citation() -> None:
+    answer_id = uuid4()
+    citation = make_citation()
+
+    record = AnswerCitationRecord.from_grounded_citation(
+        answer_id=answer_id,
+        citation=citation,
+    )
+
+    assert record.answer_id == answer_id
+    assert record.rank == citation.rank
+    assert record.chunk_version_id == citation.chunk_version_id
+    assert record.stable_section_key == citation.stable_section_key
+    assert record.quote == citation.quote
+    assert record.distance == citation.distance
+
+
+def test_answer_citation_record_rejects_invalid_rank() -> None:
+    citation = make_citation(rank=1)
+
+    with pytest.raises(ValueError, match="rank must be greater"):
+        AnswerCitationRecord(
+            id=uuid4(),
+            answer_id=uuid4(),
+            rank=0,
+            vector_index_entry_id=citation.vector_index_entry_id,
+            source_document_id=citation.source_document_id,
+            document_version_id=citation.document_version_id,
+            section_version_id=citation.section_version_id,
+            chunk_version_id=citation.chunk_version_id,
+            embedding_record_id=citation.embedding_record_id,
+            stable_section_key=citation.stable_section_key,
+            chunk_index=citation.chunk_index,
+            heading_context=citation.heading_context,
+            quote=citation.quote,
+            distance=citation.distance,
+        )
+
+
+def test_answer_citation_record_rejects_negative_distance() -> None:
+    citation = make_citation(rank=1)
+
+    with pytest.raises(ValueError, match="distance must not be negative"):
+        AnswerCitationRecord(
+            id=uuid4(),
+            answer_id=uuid4(),
+            rank=1,
+            vector_index_entry_id=citation.vector_index_entry_id,
+            source_document_id=citation.source_document_id,
+            document_version_id=citation.document_version_id,
+            section_version_id=citation.section_version_id,
+            chunk_version_id=citation.chunk_version_id,
+            embedding_record_id=citation.embedding_record_id,
+            stable_section_key=citation.stable_section_key,
+            chunk_index=citation.chunk_index,
+            heading_context=citation.heading_context,
+            quote=citation.quote,
+            distance=-0.01,
+        )

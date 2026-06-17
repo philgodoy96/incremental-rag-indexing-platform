@@ -4,6 +4,7 @@ from app.application.services.grounded_answer_service import GroundedAnswerServi
 from app.application.services.semantic_retrieval_service import (
     SemanticRetrievalService,
 )
+from app.application.transactions.answering import AnsweringTransaction
 from app.application.transactions.retrieval import RetrievalTransaction
 from app.infrastructure.db.session import SessionLocal
 from app.infrastructure.transactions.sqlalchemy_retrieval import (
@@ -25,6 +26,15 @@ def get_grounded_answer_service() -> GroundedAnswerService:
 
 
 def get_retrieval_transaction() -> Generator[RetrievalTransaction, None, None]:
+    session = SessionLocal()
+
+    try:
+        yield SqlAlchemyRetrievalTransaction(session)
+    finally:
+        session.close()
+
+
+def get_answering_transaction() -> Generator[AnsweringTransaction, None, None]:
     session = SessionLocal()
 
     try:

@@ -1,3 +1,7 @@
+from app.infrastructure.repositories.sqlalchemy_answering_repositories import (
+    SqlAlchemyAnswerCitationRecordRepository,
+    SqlAlchemyAnswerRecordRepository,
+)
 from app.infrastructure.repositories.sqlalchemy_document_repositories import (
     SqlAlchemyChunkEmbeddingLinkRepository,
     SqlAlchemyChunkVersionRepository,
@@ -15,6 +19,8 @@ from app.infrastructure.repositories.sqlalchemy_retrieval_repositories import (
 )
 
 __all__ = [
+    "SqlAlchemyAnswerCitationRecordRepository",
+    "SqlAlchemyAnswerRecordRepository",
     "SqlAlchemyChunkEmbeddingLinkRepository",
     "SqlAlchemyChunkVersionRepository",
     "SqlAlchemyDocumentVersionRepository",
