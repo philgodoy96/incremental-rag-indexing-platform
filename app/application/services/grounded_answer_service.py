@@ -1,4 +1,5 @@
 from dataclasses import replace
+from datetime import UTC, datetime
 from typing import Protocol
 
 from app.application.transactions.answering import AnsweringTransaction
@@ -10,6 +11,7 @@ from app.domain.answering.entities import (
     GroundedAnswerCitation,
     GroundedAnswerRequest,
 )
+from app.domain.llm_observability.entities import LLMProviderCallRecord
 from app.domain.retrieval.entities import (
     SemanticSearchQuery,
     SemanticSearchResult,
@@ -17,8 +19,13 @@ from app.domain.retrieval.entities import (
 from app.providers.llm import (
     LLMContextChunk,
     LLMGenerationRequest,
+    LLMGenerationResponse,
     LLMProvider,
 )
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC)
 
 
 class SemanticRetriever(Protocol):
@@ -70,8 +77,12 @@ class GroundedAnswerService:
                 grounded_answer=grounded_answer,
                 request=request,
                 transaction=transaction,
+                llm_response=None,
+                llm_started_at=None,
+                llm_completed_at=None,
             )
 
+        llm_started_at = utc_now()
         llm_response = self._llm_provider.generate_answer(
             LLMGenerationRequest(
                 question=request.question,
@@ -85,6 +96,7 @@ class GroundedAnswerService:
                 ),
             ),
         )
+        llm_completed_at = utc_now()
 
         citations = tuple(
             GroundedAnswerCitation(
@@ -115,6 +127,9 @@ class GroundedAnswerService:
             grounded_answer=grounded_answer,
             request=request,
             transaction=transaction,
+            llm_response=llm_response,
+            llm_started_at=llm_started_at,
+            llm_completed_at=llm_completed_at,
         )
 
     def _persist_answer(
@@ -123,6 +138,9 @@ class GroundedAnswerService:
         grounded_answer: GroundedAnswer,
         request: GroundedAnswerRequest,
         transaction: AnsweringTransaction,
+        llm_response: LLMGenerationResponse | None,
+        llm_started_at: datetime | None,
+        llm_completed_at: datetime | None,
     ) -> GroundedAnswer:
         answer_record = AnswerRecord.from_grounded_answer(
             grounded_answer=grounded_answer,
@@ -137,9 +155,31 @@ class GroundedAnswerService:
             for citation in grounded_answer.citations
         ]
 
+        llm_provider_call_record = None
+
+        if llm_response is not None:
+            if llm_started_at is None or llm_completed_at is None:
+                raise RuntimeError("llm timing metadata is required")
+
+            llm_provider_call_record = LLMProviderCallRecord.succeeded(
+                answer_id=answer_record.id,
+                query_trace_id=grounded_answer.query_trace_id,
+                provider=llm_response.usage.provider,
+                model_name=llm_response.usage.model_name,
+                prompt_tokens=llm_response.usage.prompt_tokens,
+                completion_tokens=llm_response.usage.completion_tokens,
+                estimated_cost_usd=llm_response.usage.estimated_cost_usd,
+                started_at=llm_started_at,
+                completed_at=llm_completed_at,
+            )
+
         transaction.answer_records.save(answer_record)
         transaction.flush()
         transaction.answer_citation_records.save_many(citation_records)
+
+        if llm_provider_call_record is not None:
+            transaction.llm_provider_calls.save(llm_provider_call_record)
+
         transaction.commit()
 
         return replace(grounded_answer, answer_id=answer_record.id)

@@ -1,3 +1,4 @@
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
@@ -10,6 +11,7 @@ from app.domain.answering.entities import (
     GroundedAnswerRequest,
 )
 from app.domain.answering.enums import GroundedAnswerStatus
+from app.domain.llm_observability.entities import LLMProviderCallRecord
 from app.domain.retrieval.entities import (
     RetrievedChunk,
     SemanticSearchQuery,
@@ -97,10 +99,38 @@ class InMemoryAnswerCitationRecordRepository:
             self.records[citation.id] = citation
 
 
+class InMemoryLLMProviderCallRecordRepository:
+    def __init__(self) -> None:
+        self.records: dict[UUID, LLMProviderCallRecord] = {}
+
+    def get_by_id(
+        self,
+        provider_call_id: UUID,
+    ) -> LLMProviderCallRecord | None:
+        return self.records.get(provider_call_id)
+
+    def list_by_answer_id(
+        self,
+        answer_id: UUID,
+    ) -> list[LLMProviderCallRecord]:
+        return sorted(
+            [
+                record
+                for record in self.records.values()
+                if record.answer_id == answer_id
+            ],
+            key=lambda record: record.started_at,
+        )
+
+    def save(self, record: LLMProviderCallRecord) -> None:
+        self.records[record.id] = record
+
+
 class FakeTransaction:
     def __init__(self) -> None:
         self.answer_records = InMemoryAnswerRecordRepository()
         self.answer_citation_records = InMemoryAnswerCitationRecordRepository()
+        self.llm_provider_calls = InMemoryLLMProviderCallRecordRepository()
         self.flush_count = 0
         self.commit_count = 0
 
@@ -233,6 +263,27 @@ def test_grounded_answer_service_persists_answer_record_and_citations() -> None:
     assert citation_records[0].quote == "Status: At Risk"
     assert citation_records[0].distance == 0.12
 
+    provider_calls = transaction.llm_provider_calls.list_by_answer_id(
+        answer.answer_id,
+    )
+
+    assert len(provider_calls) == 1
+
+    provider_call = provider_calls[0]
+
+    assert provider_call.answer_id == answer.answer_id
+    assert provider_call.query_trace_id == answer.query_trace_id
+    assert provider_call.provider == "fake"
+    assert provider_call.model_name == "fake-llm-v1"
+    assert provider_call.prompt_tokens > 0
+    assert provider_call.completion_tokens > 0
+    assert provider_call.total_tokens == (
+        provider_call.prompt_tokens + provider_call.completion_tokens
+    )
+    assert provider_call.estimated_cost_usd == Decimal("0")
+    assert provider_call.latency_ms >= 0
+    assert provider_call.error_message is None
+
     assert transaction.flush_count == 1
     assert transaction.commit_count == 1
 
@@ -307,6 +358,13 @@ def test_grounded_answer_service_persists_insufficient_context_answer() -> None:
     )
 
     assert citation_records == []
+
+    provider_calls = transaction.llm_provider_calls.list_by_answer_id(
+        answer.answer_id,
+    )
+
+    assert provider_calls == []
+
     assert transaction.flush_count == 1
     assert transaction.commit_count == 1
 

@@ -13,6 +13,9 @@ from app.infrastructure.db.models.document_models import (
     SourceDocumentModel,
     VectorIndexEntryModel,
 )
+from app.infrastructure.db.models.llm_observability_models import (
+    LLMProviderCallRecordModel,
+)
 from app.infrastructure.db.models.retrieval_models import (
     QueryTraceHitModel,
     QueryTraceModel,
@@ -27,6 +30,7 @@ __all__ = [
     "EmbeddingCostRecordModel",
     "EmbeddingRecordModel",
     "IngestionRunModel",
+    "LLMProviderCallRecordModel",
     "QueryTraceModel",
     "QueryTraceHitModel",
     "SectionVersionModel",

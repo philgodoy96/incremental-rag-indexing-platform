@@ -13,6 +13,9 @@ from app.infrastructure.repositories.sqlalchemy_document_repositories import (
     SqlAlchemySourceDocumentRepository,
     SqlAlchemyVectorIndexEntryRepository,
 )
+from app.infrastructure.repositories.sqlalchemy_llm_observability_repositories import (
+    SqlAlchemyLLMProviderCallRecordRepository,
+)
 from app.infrastructure.repositories.sqlalchemy_retrieval_repositories import (
     SqlAlchemyQueryTraceHitRepository,
     SqlAlchemyQueryTraceRepository,
@@ -27,6 +30,7 @@ __all__ = [
     "SqlAlchemyEmbeddingCostRecordRepository",
     "SqlAlchemyEmbeddingRecordRepository",
     "SqlAlchemyIngestionRunRepository",
+    "SqlAlchemyLLMProviderCallRecordRepository",
     "SqlAlchemyQueryTraceRepository",
     "SqlAlchemyQueryTraceHitRepository",
     "SqlAlchemySectionVersionRepository",
