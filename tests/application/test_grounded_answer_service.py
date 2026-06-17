@@ -19,12 +19,22 @@ from app.domain.retrieval.entities import (
     SemanticSearchResult,
 )
 from app.providers.fake_llm_provider import FakeLLMProvider
+from app.providers.llm import (
+    LLMGenerationRequest,
+    LLMGenerationResponse,
+    LLMProviderError,
+)
 
 
 class FakeSemanticRetriever:
     def __init__(self, result: SemanticSearchResult) -> None:
         self.result = result
         self.last_query: SemanticSearchQuery | None = None
+        self.query_trace_id = result.query_trace_id
+
+    @classmethod
+    def with_results(cls) -> "FakeSemanticRetriever":
+        return cls(make_search_result(results=(make_retrieved_chunk(),)))
 
     def search(
         self,
@@ -164,6 +174,38 @@ class FakeTransaction:
 
     def commit(self) -> None:
         self.commit_count += 1
+
+
+class FailingLLMProvider:
+    @property
+    def provider(self) -> str:
+        return "fake"
+
+    @property
+    def model_name(self) -> str:
+        return "fake-llm-v1"
+
+    def generate_answer(
+        self,
+        request: LLMGenerationRequest,
+    ) -> LLMGenerationResponse:
+        raise LLMProviderError("provider timeout")
+
+
+class UnexpectedFailingLLMProvider:
+    @property
+    def provider(self) -> str:
+        return "fake"
+
+    @property
+    def model_name(self) -> str:
+        return "fake-llm-v1"
+
+    def generate_answer(
+        self,
+        request: LLMGenerationRequest,
+    ) -> LLMGenerationResponse:
+        raise RuntimeError("socket closed")
 
 
 def make_retrieved_chunk(distance: float = 0.12) -> RetrievedChunk:
@@ -491,3 +533,93 @@ def test_in_memory_llm_provider_call_repository_lists_recent_records() -> None:
     records = repository.list_recent(limit=10, offset=0)
 
     assert [record.id for record in records] == [second.id, first.id]
+
+
+def test_grounded_answer_service_persists_failed_llm_provider_call() -> None:
+    retriever = FakeSemanticRetriever.with_results()
+    llm_provider = FailingLLMProvider()
+    transaction = FakeTransaction()
+    service = GroundedAnswerService(
+        retriever=retriever,
+        llm_provider=llm_provider,
+    )
+
+    with pytest.raises(LLMProviderError, match="provider timeout"):
+        service.answer(
+            request=GroundedAnswerRequest(
+                question="What is Project Atlas status?",
+                top_k=5,
+                provider="fake",
+                model_name="fake-embedding-v1",
+            ),
+            transaction=transaction,  # type: ignore[arg-type]
+        )
+
+    provider_calls = transaction.llm_provider_calls.list_recent(
+        limit=10,
+        offset=0,
+        status="failed",
+    )
+
+    assert len(provider_calls) == 1
+
+    provider_call = provider_calls[0]
+
+    assert provider_call.answer_id is None
+    assert provider_call.query_trace_id == retriever.query_trace_id
+    assert provider_call.provider == "fake"
+    assert provider_call.model_name == "fake-llm-v1"
+    assert provider_call.status.value == "failed"
+    assert provider_call.prompt_tokens == 0
+    assert provider_call.completion_tokens == 0
+    assert provider_call.total_tokens == 0
+    assert provider_call.estimated_cost_usd == Decimal("0")
+    assert provider_call.latency_ms >= 0
+    assert provider_call.error_message == "provider timeout"
+    assert transaction.commit_count == 1
+
+
+def test_grounded_answer_service_persists_unexpected_llm_provider_error() -> None:
+    retriever = FakeSemanticRetriever.with_results()
+    llm_provider = UnexpectedFailingLLMProvider()
+    transaction = FakeTransaction()
+    service = GroundedAnswerService(
+        retriever=retriever,
+        llm_provider=llm_provider,
+    )
+
+    with pytest.raises(LLMProviderError, match="unexpected LLM provider error"):
+        service.answer(
+            request=GroundedAnswerRequest(
+                question="What is Project Atlas status?",
+                top_k=5,
+                provider="fake",
+                model_name="fake-embedding-v1",
+            ),
+            transaction=transaction,  # type: ignore[arg-type]
+        )
+
+    provider_calls = transaction.llm_provider_calls.list_recent(
+        limit=10,
+        offset=0,
+        status="failed",
+    )
+
+    assert len(provider_calls) == 1
+
+    provider_call = provider_calls[0]
+
+    assert provider_call.answer_id is None
+    assert provider_call.query_trace_id == retriever.query_trace_id
+    assert provider_call.provider == "fake"
+    assert provider_call.model_name == "fake-llm-v1"
+    assert provider_call.status.value == "failed"
+    assert provider_call.prompt_tokens == 0
+    assert provider_call.completion_tokens == 0
+    assert provider_call.total_tokens == 0
+    assert provider_call.estimated_cost_usd == Decimal("0")
+    assert provider_call.latency_ms >= 0
+    assert provider_call.error_message == (
+        "unexpected provider error: RuntimeError: socket closed"
+    )
+    assert transaction.commit_count == 1
