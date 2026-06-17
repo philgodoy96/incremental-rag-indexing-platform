@@ -1,3 +1,9 @@
+from app.infrastructure.db.mappers.answering_mappers import (
+    answer_citation_record_from_model,
+    answer_citation_record_to_model,
+    answer_record_from_model,
+    answer_record_to_model,
+)
 from app.infrastructure.db.mappers.document_mappers import (
     chunk_embedding_link_from_model,
     chunk_embedding_link_to_model,
@@ -26,6 +32,10 @@ from app.infrastructure.db.mappers.retrieval_mappers import (
 )
 
 __all__ = [
+    "answer_record_to_model",
+    "answer_record_from_model",
+    "answer_citation_record_to_model",
+    "answer_citation_record_from_model",
     "chunk_embedding_link_from_model",
     "chunk_embedding_link_to_model",
     "chunk_version_from_model",

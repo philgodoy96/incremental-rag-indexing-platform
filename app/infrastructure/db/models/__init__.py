@@ -1,3 +1,7 @@
+from app.infrastructure.db.models.answering_models import (
+    AnswerCitationRecordModel,
+    AnswerRecordModel,
+)
 from app.infrastructure.db.models.document_models import (
     ChunkEmbeddingLinkModel,
     ChunkVersionModel,
@@ -15,6 +19,8 @@ from app.infrastructure.db.models.retrieval_models import (
 )
 
 __all__ = [
+    "AnswerCitationRecordModel",
+    "AnswerRecordModel",
     "ChunkEmbeddingLinkModel",
     "ChunkVersionModel",
     "DocumentVersionModel",
