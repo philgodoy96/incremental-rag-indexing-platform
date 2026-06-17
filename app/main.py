@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.api.routes.answers import router as answers_router
 from app.api.routes.health import router as health_router
 from app.api.routes.ingestion import router as ingestion_router
 from app.api.routes.readiness import router as readiness_router
@@ -41,6 +42,12 @@ def create_app() -> FastAPI:
         retrieval_router,
         prefix=settings.api_v1_prefix,
         tags=["retrieval"],
+    )
+
+    app.include_router(
+        answers_router,
+        prefix=settings.api_v1_prefix,
+        tags=["answers"],
     )
 
     return app
