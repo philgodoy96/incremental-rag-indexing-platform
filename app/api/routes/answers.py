@@ -9,6 +9,10 @@ from app.api.dependencies import (
     get_answering_transaction,
     get_grounded_answer_service,
 )
+from app.api.schemas.llm_provider_calls import (
+    LLMProviderCallListResponse,
+    to_llm_provider_call_response,
+)
 from app.application.services.grounded_answer_service import GroundedAnswerService
 from app.application.transactions.answering import AnsweringTransaction
 from app.domain.answering.entities import (
@@ -229,4 +233,33 @@ def get_answer(
             _to_answer_citation_record_response(citation)
             for citation in citations
         ],
+    )
+
+
+@router.get("/{answer_id}/llm-provider-calls", response_model=LLMProviderCallListResponse)
+def list_llm_provider_calls_for_answer(
+    answer_id: UUID,
+    transaction: Annotated[
+        AnsweringTransaction,
+        Depends(get_answering_transaction),
+    ],
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+) -> LLMProviderCallListResponse:
+    answer = transaction.answer_records.get_by_id(answer_id)
+
+    if answer is None:
+        raise HTTPException(status_code=404, detail="Answer not found")
+
+    records = transaction.llm_provider_calls.list_by_answer_id(answer_id)
+
+    paginated_records = records[offset : offset + limit]
+
+    return LLMProviderCallListResponse(
+        items=[
+            to_llm_provider_call_response(record)
+            for record in paginated_records
+        ],
+        limit=limit,
+        offset=offset,
     )

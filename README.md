@@ -208,6 +208,10 @@ Current status:
 - Grounded Answer API now returns answer_id
 - Persisted answers can now be listed and inspected by ID
 - Grounded answer generation now persists LLM provider call records
+- LLM provider calls can now be inspected by answer_id
+- Persisted LLM provider calls can now be listed and inspected by ID
+- LLM Provider Call Read API introduced
+- LLM provider call listing repository methods introduced
 - LLM provider call persistence introduced
 - LLM usage metadata added to provider boundary
 - LLM provider call domain models introduced

@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app.api.routes.answers import router as answers_router
 from app.api.routes.health import router as health_router
 from app.api.routes.ingestion import router as ingestion_router
+from app.api.routes.llm_provider_calls import router as llm_provider_calls_router
 from app.api.routes.readiness import router as readiness_router
 from app.api.routes.retrieval import router as retrieval_router
 from app.config.settings import get_settings
@@ -48,6 +49,12 @@ def create_app() -> FastAPI:
         answers_router,
         prefix=settings.api_v1_prefix,
         tags=["answers"],
+    )
+
+    app.include_router(
+        llm_provider_calls_router,
+        prefix=settings.api_v1_prefix,
+        tags=["llm-provider-calls"],
     )
 
     return app
