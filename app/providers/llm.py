@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Protocol
 
 
@@ -36,8 +37,44 @@ class LLMGenerationRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class LLMUsageMetadata:
+    provider: str
+    model_name: str
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    estimated_cost_usd: Decimal
+    latency_ms: int
+
+    def __post_init__(self) -> None:
+        ensure_not_blank(self.provider, "provider")
+        ensure_not_blank(self.model_name, "model_name")
+
+        if self.prompt_tokens < 0:
+            raise ValueError("prompt_tokens must not be negative")
+
+        if self.completion_tokens < 0:
+            raise ValueError("completion_tokens must not be negative")
+
+        if self.total_tokens < 0:
+            raise ValueError("total_tokens must not be negative")
+
+        if self.total_tokens != self.prompt_tokens + self.completion_tokens:
+            raise ValueError(
+                "total_tokens must equal prompt_tokens plus completion_tokens",
+            )
+
+        if self.estimated_cost_usd < Decimal("0"):
+            raise ValueError("estimated_cost_usd must not be negative")
+
+        if self.latency_ms < 0:
+            raise ValueError("latency_ms must not be negative")
+
+
+@dataclass(frozen=True, slots=True)
 class LLMGenerationResponse:
     answer: str
+    usage: LLMUsageMetadata
 
     def __post_init__(self) -> None:
         ensure_not_blank(self.answer, "answer")

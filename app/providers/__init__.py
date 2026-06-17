@@ -6,6 +6,7 @@ from app.providers.llm import (
     LLMGenerationRequest,
     LLMGenerationResponse,
     LLMProvider,
+    LLMUsageMetadata,
 )
 
 __all__ = [
@@ -17,4 +18,5 @@ __all__ = [
     "LLMGenerationRequest",
     "LLMGenerationResponse",
     "LLMProvider",
+    "LLMUsageMetadata",
 ]
