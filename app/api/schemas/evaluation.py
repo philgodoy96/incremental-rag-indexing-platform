@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from app.domain.evaluation.entities import (
     RetrievalEvaluationCase,
     RetrievalEvaluationCaseResult,
+    RetrievalEvaluationRunSummary,
 )
 from app.domain.evaluation.enums import RetrievalEvaluationCaseResultStatus
 
@@ -53,6 +54,29 @@ class RetrievalEvaluationCaseResultListResponse(BaseModel):
     offset: int
 
 
+class RetrievalEvaluationRunRequest(BaseModel):
+    evaluation_case_ids: list[UUID] = Field(min_length=1)
+    top_k: int = Field(default=5, ge=1, le=50)
+    provider: str = Field(default="fake", min_length=1)
+    model_name: str = Field(default="fake-embedding-v1", min_length=1)
+
+
+class RetrievalEvaluationRunSummaryResponse(BaseModel):
+    case_count: int
+    succeeded_count: int
+    failed_count: int
+    hit_count: int
+    total_expected_count: int
+    hit_rate_at_k: float
+    mean_recall_at_k: float
+    mean_reciprocal_rank: float
+
+
+class RetrievalEvaluationRunResponse(BaseModel):
+    results: list[RetrievalEvaluationCaseResultResponse]
+    summary: RetrievalEvaluationRunSummaryResponse
+
+
 def to_retrieval_evaluation_case_response(
     evaluation_case: RetrievalEvaluationCase,
 ) -> RetrievalEvaluationCaseResponse:
@@ -84,4 +108,19 @@ def to_retrieval_evaluation_case_result_response(
         reciprocal_rank=result.reciprocal_rank,
         error_message=result.error_message,
         created_at=result.created_at,
+    )
+
+
+def to_retrieval_evaluation_run_summary_response(
+    summary: RetrievalEvaluationRunSummary,
+) -> RetrievalEvaluationRunSummaryResponse:
+    return RetrievalEvaluationRunSummaryResponse(
+        case_count=summary.case_count,
+        succeeded_count=summary.succeeded_count,
+        failed_count=summary.failed_count,
+        hit_count=summary.hit_count,
+        total_expected_count=summary.total_expected_count,
+        hit_rate_at_k=summary.hit_rate_at_k,
+        mean_recall_at_k=summary.mean_recall_at_k,
+        mean_reciprocal_rank=summary.mean_reciprocal_rank,
     )

@@ -1,17 +1,30 @@
-from typing import Annotated
+from typing import Annotated, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.dependencies import get_answering_transaction
+from app.api.dependencies import (
+    get_answering_transaction,
+    get_semantic_retrieval_service,
+)
 from app.api.schemas.evaluation import (
     RetrievalEvaluationCaseCreateRequest,
     RetrievalEvaluationCaseListResponse,
     RetrievalEvaluationCaseResponse,
     RetrievalEvaluationCaseResultListResponse,
     RetrievalEvaluationCaseResultResponse,
+    RetrievalEvaluationRunRequest,
+    RetrievalEvaluationRunResponse,
     to_retrieval_evaluation_case_response,
     to_retrieval_evaluation_case_result_response,
+    to_retrieval_evaluation_run_summary_response,
+)
+from app.application.services.retrieval_evaluation_runner import (
+    RetrievalEvaluationRunner,
+    SemanticRetriever,
+)
+from app.application.services.semantic_retrieval_service import (
+    SemanticRetrievalService,
 )
 from app.application.transactions.evaluation import EvaluationTransaction
 from app.domain.evaluation.entities import RetrievalEvaluationCase
@@ -181,3 +194,56 @@ def get_retrieval_evaluation_case_result(
         )
 
     return to_retrieval_evaluation_case_result_response(result)
+
+
+@router.post("/runs", response_model=RetrievalEvaluationRunResponse)
+def run_retrieval_evaluation(
+    request: RetrievalEvaluationRunRequest,
+    transaction: Annotated[
+        EvaluationTransaction,
+        Depends(get_answering_transaction),
+    ],
+    retriever: Annotated[
+        SemanticRetrievalService,
+        Depends(get_semantic_retrieval_service),
+    ],
+) -> RetrievalEvaluationRunResponse:
+    evaluation_cases = []
+
+    for evaluation_case_id in request.evaluation_case_ids:
+        evaluation_case = transaction.retrieval_evaluation_cases.get_by_id(
+            evaluation_case_id,
+        )
+
+        if evaluation_case is None:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "Retrieval evaluation case not found: "
+                    f"{evaluation_case_id}"
+                ),
+            )
+
+        evaluation_cases.append(evaluation_case)
+
+    runner = RetrievalEvaluationRunner(
+        retriever=cast(SemanticRetriever, retriever),
+    )
+
+    run_result = runner.run_cases(
+        evaluation_cases=tuple(evaluation_cases),
+        top_k=request.top_k,
+        provider=request.provider,
+        model_name=request.model_name,
+        transaction=transaction,
+    )
+
+    return RetrievalEvaluationRunResponse(
+        results=[
+            to_retrieval_evaluation_case_result_response(result)
+            for result in run_result.results
+        ],
+        summary=to_retrieval_evaluation_run_summary_response(
+            run_result.summary,
+        ),
+    )
