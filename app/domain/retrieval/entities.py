@@ -81,6 +81,7 @@ class SemanticSearchResult:
     provider: str
     model_name: str
     results: tuple[RetrievedChunk, ...]
+    query_trace_id: UUID | None = None
 
     def __post_init__(self) -> None:
         ensure_not_blank(self.query, "query")
