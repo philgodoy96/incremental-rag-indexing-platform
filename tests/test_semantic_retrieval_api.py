@@ -43,6 +43,7 @@ class FakeSemanticRetrievalService:
                     distance=0.12,
                 ),
             ),
+            query_trace_id=uuid4(),
         )
 
 
@@ -70,6 +71,7 @@ def test_semantic_retrieval_search_returns_ranked_chunks() -> None:
     payload = response.json()
 
     assert payload["query"] == "What is the current status of Project Atlas?"
+    assert payload["query_trace_id"]
     assert payload["top_k"] == 5
     assert payload["provider"] == "fake"
     assert payload["model_name"] == "fake-embedding-v1"
