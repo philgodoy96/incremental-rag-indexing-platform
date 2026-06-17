@@ -24,6 +24,12 @@ from app.infrastructure.db.mappers.document_mappers import (
     vector_index_entry_from_model,
     vector_index_entry_to_model,
 )
+from app.infrastructure.db.mappers.evaluation_mappers import (
+    retrieval_evaluation_case_from_model,
+    retrieval_evaluation_case_result_from_model,
+    retrieval_evaluation_case_result_to_model,
+    retrieval_evaluation_case_to_model,
+)
 from app.infrastructure.db.mappers.llm_observability_mappers import (
     llm_provider_call_record_from_model,
     llm_provider_call_record_to_model,
@@ -58,6 +64,10 @@ __all__ = [
     "query_trace_from_model",
     "query_trace_hit_to_model",
     "query_trace_hit_from_model",
+    "retrieval_evaluation_case_from_model",
+    "retrieval_evaluation_case_to_model",
+    "retrieval_evaluation_case_result_from_model",
+    "retrieval_evaluation_case_result_to_model",
     "section_version_from_model",
     "section_version_to_model",
     "source_document_from_model",
