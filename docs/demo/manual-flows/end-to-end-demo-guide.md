@@ -261,12 +261,10 @@ Expected behavior:
 - provider call records exist
 - successful fake calls have provider `fake`
 - fake calls should have model `fake-llm-v1`
-- failed real provider calls are persisted with error messages
-- failed real provider calls may have answer_id set to null
+- failed provider calls are persisted with error messages
+- failed provider calls may have `answer_id` set to null
 
-A failed OpenAI call caused by rate limits is still a useful observability signal.
-
-It proves failed provider calls are captured, but it does not prove successful real-provider answer generation.
+External provider failures are persisted and auditable. Successful real-provider answer generation requires controlled manual validation and documented outcomes.
 
 ## Inspect Usage and Cost Summary
 
@@ -286,7 +284,7 @@ Expected behavior:
 
 For fake provider calls, estimated cost is expected to be zero.
 
-For failed OpenAI calls with no usage metadata, token totals may remain zero.
+For failed provider calls with no usage metadata, token totals may remain zero.
 
 ## Demo Question Set
 
@@ -458,15 +456,13 @@ If using OpenAI provider:
 
 A common configuration error is using `OPEN_AI_API_KEY` instead of `OPENAI_API_KEY`.
 
-### OpenAI calls fail with rate limit
+### External provider request failures
 
-This means the real provider request reached OpenAI but was rejected by provider limits.
+External provider requests may fail because of credential issues, timeouts, quota limits, or provider-side rate limits.
 
-The failure should be persisted as a failed provider call.
+When that happens, the failure should be persisted as a failed provider call record.
 
-This does not prove successful real-provider answer generation.
-
-Switch back to fake provider for local demo reliability:
+For local demo reliability, use the fake provider:
 
     LLM_PROVIDER=fake
 

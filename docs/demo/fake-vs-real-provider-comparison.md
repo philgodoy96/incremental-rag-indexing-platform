@@ -118,10 +118,12 @@ Recommended questions:
 
 Use this table when recording a controlled comparison.
 
+This table is intentionally left as a template for controlled local comparisons. Do not record provider credentials or local secrets.
+
 | Question | Provider | Model | Latency ms | Prompt tokens | Completion tokens | Estimated cost USD | Answer grounded? | Citations relevant? | Notes |
 |---|---|---|---:|---:|---:|---:|---|---|---|
-| Who owns Project Atlas? | fake | fake-llm-v1 |  |  |  |  |  |  |  |
-| Who owns Project Atlas? | openai | configured model |  |  |  |  |  |  |  |
+| Example question | fake | fake-llm-v1 |  |  |  |  |  |  |  |
+| Same example question | optional real provider | configured model |  |  |  |  |  |  |  |
 
 ## Manual Comparison Flow
 
