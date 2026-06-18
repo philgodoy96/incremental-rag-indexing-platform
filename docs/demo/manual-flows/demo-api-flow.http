@@ -7,7 +7,7 @@
 @chunkVersionId = replace-with-indexed-chunk-version-id
 
 ### Health check
-GET {{baseUrl}}/health
+GET {{baseUrl}}/api/v1/health
 
 
 ### Semantic retrieval: Project Atlas ownership

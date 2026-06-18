@@ -104,7 +104,7 @@ Manual validation steps are documented in [OpenAI Manual Smoke Test](../provider
 
 ### Failure capture
 
-Provider failures during answer generation are mapped to structured errors and persisted as failed provider call records when applicable. This includes rate limit and timeout failures from the OpenAI adapter.
+Provider failures during answer generation are mapped to structured errors and persisted as failed provider call records when applicable. This includes rate limit and timeout failures from external provider adapters.
 
 ### Rate limits
 
@@ -320,6 +320,7 @@ The following sequence supports teams preparing the platform for wider deploymen
 
 ## Related Documentation
 
+- [Final Demo Walkthrough](../demo/final-demo-walkthrough.md)
 - [System Overview](../architecture/system-overview.md)
 - [OpenAI Provider Setup](../providers/openai-provider-setup.md)
 - [Fake vs Real Provider Comparison](../demo/fake-vs-real-provider-comparison.md)

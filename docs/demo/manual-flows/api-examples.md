@@ -58,7 +58,7 @@ Or use the Docker-based API startup flow if preferred.
 
 Request:
 
-    curl http://localhost:8000/health
+    curl http://localhost:8000/api/v1/health
 
 Expected behavior:
 

@@ -4,7 +4,7 @@
 
 Create a reproducible end-to-end demo flow for the Incremental RAG Indexing Platform.
 
-This demo turns the project from a strong backend and AI infrastructure implementation into a portfolio-ready demonstrable product.
+This demo turns the project from a strong backend and AI infrastructure implementation into a reliably demonstrable system.
 
 ## Why This Demo Exists
 
@@ -32,51 +32,29 @@ This keeps the project:
 - testable without external services
 - safe for public GitHub usage
 
-Real OpenAI integration is intentionally deferred to a separate optional provider integration.
+Real provider integration is documented separately and is not required for the default demo workflow.
 
-This avoids mixing two concerns:
+This keeps two concerns separate:
 
 - reproducible local demo data and workflow
-- external provider behavior and real API costs
+- optional external provider validation and cost
 
-## Planned Work
+## Implemented Demo Assets
 
-### Define end-to-end demo scenario
+The following demo assets are in place:
 
-Create the demo scenario and plan.
+- end-to-end demo scenario documentation
+- deterministic demo documents under `demo/documents/`
+- demo dataset preview and seed scripts
+- retrieval evaluation case seeding
+- manual demo walkthroughs and API examples
+- optional provider comparison and smoke-test guides
 
-### Add deterministic demo documents
+## Optional Follow-Up
 
-Add markdown documents under the demo assets directory.
+Optional follow-up work includes:
 
-### Add demo seed data loader
-
-Add a repeatable seed script or service to create demo records.
-
-### Cover demo seed data validation
-
-Add tests to ensure demo data is valid and deterministic.
-
-### Add manual demo testing guide
-
-Add a manual walkthrough for ingestion, retrieval, answer generation, tracing, usage reporting, and evaluation.
-
-### Add Postman or cURL examples
-
-Add a repeatable API testing flow for the full demo scenario.
-
-## Future Work
-
-Future work will add:
-
-- optional OpenAI provider adapter
-- OPENAI_API_KEY configuration
-- provider selection through environment variables
-- mocked tests for OpenAI adapter
-- safe real-demo mode
-- fake provider vs OpenAI provider comparisons
-- latency observations
-- token and cost observations
-- answer quality observations
-- citation quality observations
-- retrieval evaluation observations
+- additional provider comparison observations
+- latency, token, and cost observations during controlled validation
+- answer quality and citation quality observations
+- retrieval evaluation baselines across embedding strategies

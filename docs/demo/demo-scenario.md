@@ -6,7 +6,7 @@ This document defines the end-to-end demo scenario for the Incremental RAG Index
 
 The goal is to make the project demonstrable without requiring external API keys.
 
-OpenAI integration will be added later as an optional demo mode.
+OpenAI is supported as an optional provider for controlled manual validation.
 
 ## Company Context
 
@@ -116,13 +116,12 @@ This ensures:
 - tests remain deterministic
 - GitHub users can run the project locally
 
-A real OpenAI provider can be enabled later as an optional mode.
+A real provider can be enabled through explicit runtime configuration when manual validation is needed.
 
 ## Non-Goals
 
 This demo does not add:
 
-- OpenAI real integration
 - production authentication
 - multi-user demo UI
 - frontend
