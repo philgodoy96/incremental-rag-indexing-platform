@@ -75,6 +75,14 @@ Use this checklist before presenting the Incremental RAG Indexing Platform.
 - [ ] token totals are recorded when available.
 - [ ] estimated cost is recorded when available.
 
+
+## Retrieval Evaluation Case Seeding
+
+- [ ] `python scripts/seed_demo_evaluation_cases.py --dry-run` runs successfully.
+- [ ] `python scripts/seed_demo_evaluation_cases.py` creates demo evaluation cases.
+- [ ] Rerun skips identical cases.
+- [ ] `GET /api/v1/evaluation/cases` lists the five demo cases.
+- [ ] Expected chunk version IDs are populated.
 ## Evaluation
 
 - [ ] Evaluation cases can be created or inspected.

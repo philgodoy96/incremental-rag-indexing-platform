@@ -375,6 +375,21 @@ Expected behavior:
 - summary includes mean_recall_at_k
 - summary includes mean_reciprocal_rank
 
+
+## Retrieval Evaluation Workflow
+
+After indexing the demo dataset, run the retrieval evaluation workflow:
+
+    python scripts/seed_demo_evaluation_cases.py --dry-run
+    python scripts/seed_demo_evaluation_cases.py
+
+Then run evaluation through the API.
+
+See:
+
+    docs/demo/manual-flows/retrieval-evaluation-workflow.md
+
+This workflow turns retrieval quality into measurable metrics such as hit_rate_at_k, recall_at_k, and reciprocal_rank.
 ## Demo Success Criteria
 
 The demo is successful when the reviewer can verify:
