@@ -9,12 +9,14 @@ from app.providers.llm import (
     LLMProviderError,
     LLMUsageMetadata,
 )
+from app.providers.openai_llm_provider import OpenAILLMProvider
 
 __all__ = [
     "EmbeddingProvider",
     "EmbeddingProviderResponse",
     "FakeEmbeddingProvider",
     "FakeLLMProvider",
+    "OpenAILLMProvider",
     "LLMContextChunk",
     "LLMGenerationRequest",
     "LLMGenerationResponse",
