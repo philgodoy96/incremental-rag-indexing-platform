@@ -213,6 +213,8 @@ Current status:
 - LLM usage can now be summarized by period, provider, and model
 - Retrieval evaluation run API introduced
 - Demo dataset and manual flow planning started
+- Demo document manifest added
+- Deterministic demo documents added
 - End-to-end demo scenario defined
 - Retrieval evaluation case and result APIs introduced
 - Retrieval evaluation runner introduced
