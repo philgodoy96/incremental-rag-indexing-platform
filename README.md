@@ -1,290 +1,258 @@
 # Incremental RAG Indexing Platform
 
-A production-style backend platform for incremental Retrieval-Augmented Generation indexing.
+## Project Thesis
 
-This project focuses on building the infrastructure behind reliable enterprise RAG systems: document versioning, structure-aware chunking, embedding reuse, vector retrieval, grounded answers with citations, retrieval evaluation, cost tracking, and auditability.
+This is an AI infrastructure and Retrieval-Augmented Generation (RAG) indexing platform focused on incremental document processing, grounded answers, citation auditability, provider observability, usage and cost reporting, and retrieval evaluation.
 
-This is not a chatbot demo.  
-It is an AI infrastructure project focused on retrieval correctness, operational traceability, and production-minded backend design.
+It is not a chatbot. The emphasis is on versioning, retrieval correctness, operational traceability, and measurable retrieval quality.
 
 ## Why This Project Exists
 
-Many simple RAG systems reprocess entire documents whenever content changes.
+Enterprise knowledge changes continuously. Naive RAG systems often re-index entire documents on every edit. That approach is wasteful, hard to audit, and expensive at scale.
 
-That approach becomes expensive and difficult to audit as knowledge bases grow.
+This platform addresses engineering problems such as:
 
-A production-grade RAG indexing platform should be able to answer questions such as:
-
-- What changed in a document?
-- Which document version introduced the change?
-- Which sections and chunks were affected?
-- Which chunks need new embeddings?
-- Which embeddings can be reused?
-- Which retrieved evidence supported an answer?
-- Which retrieval strategy was used?
-- Did retrieval quality improve or regress after a change?
-- How much did indexing cost?
-
-This project is designed around those questions.
+- detecting what changed in a document and reprocessing only affected sections and chunks
+- preserving immutable version history for documents, sections, and chunks
+- projecting a current vector index from durable source and embedding records
+- measuring retrieval quality instead of relying on anecdotal answer inspection
+- persisting LLM provider calls, including failures, for audit and cost analysis
+- making estimated usage and cost visible by provider and model
 
 ## Core Capabilities
 
-Planned V1 capabilities include:
+Implemented capabilities include:
 
-- Local Markdown document ingestion
-- Immutable document versioning
-- Section extraction
-- Structure-aware chunking
-- Chunk-level hashing
-- Embedding input hashing
-- Fake deterministic embeddings
-- PostgreSQL persistence
-- pgvector-based semantic search
-- Keyword search
-- Hybrid retrieval
-- Grounded answers with citations
-- Query tracing
-- Audit logs
-- Retrieval evaluation
-- Cost tracking
-- Indexing dry runs
-- Prompt injection risk detection
+- Incremental local Markdown document ingestion with checksum-driven change detection
+- Document, section, and chunk versioning
+- Embedding generation with cross-version reuse where input is unchanged
+- Current vector index projection for semantic retrieval
+- Semantic retrieval API with query traces
+- Grounded answer generation with persisted answers and citations
+- LLM provider boundary with fake provider as default
+- Optional OpenAI provider adapter
+- Provider call persistence for successful and failed attempts
+- Provider call read API
+- LLM usage and cost reporting
+- Retrieval evaluation framework with demo cases and seeding command
+- Deterministic demo dataset and manifest-driven indexing workflow
+- Health and readiness endpoints
 
-## Architecture Style
+## Architecture Overview
 
-The project uses a modular monolith architecture with explicit boundaries between:
+High-level data and request flow:
 
-- API layer
-- Application services
-- Domain layer
-- Repository interfaces
-- Infrastructure repositories
-- Database models
-- Provider adapters
-- Retrieval layer
-- Evaluation layer
-- Audit layer
+```text
+Source documents
+  -> document versions
+  -> section/chunk versions
+  -> embeddings
+  -> vector index entries
+  -> retrieval
+  -> query traces
+  -> grounded answers
+  -> citations / provider calls / usage reports
+```
 
-The domain model is intentionally separated from SQLAlchemy models.
+Architecture choices:
 
-Application services operate on domain entities and repository contracts, not directly on database models.
+- modular monolith with API, application, domain, and infrastructure layers
+- domain entities separated from SQLAlchemy persistence models
+- repository contracts between application services and infrastructure
+- LLM access through a provider boundary rather than direct SDK coupling in services
+- `vector_index_entries` as the current retrieval projection, rebuildable from versions and embeddings
+- retrieval evaluation as a persistent measurement layer for ranking quality
+
+See [System Overview](docs/architecture/system-overview.md) for deeper architecture documentation.
 
 ## Tech Stack
 
-Core stack:
-
-- Python
+- Python 3.12+
 - FastAPI
-- PostgreSQL
-- pgvector
+- PostgreSQL with pgvector
 - SQLAlchemy 2.0
 - Alembic
 - Pydantic v2
 - pytest
-- Docker
-- Docker Compose
+- Docker and Docker Compose
+- optional OpenAI provider adapter
 
-Initial provider strategy:
+## Local Setup
 
-- FakeEmbeddingProvider first
-- FakeLLMProvider first
-- OpenAI or AWS Bedrock providers later
+1. Clone the repository.
+2. Create and activate a Python 3.12+ environment.
+3. Install dependencies:
 
-Observability roadmap:
+```bash
+pip install -e ".[dev]"
+```
 
-- Prometheus
-- Grafana
-- OpenTelemetry
-- Sentry
+4. Copy environment defaults and adjust locally:
 
-Future adapters:
+```bash
+cp .env.example .env
+```
 
-- LangChain adapter
-- LlamaIndex adapter
+5. Start PostgreSQL:
 
-These adapters are planned as integration boundaries, not as the core architecture.
+```bash
+docker compose up -d postgres
+```
 
-## Source of Truth vs Derived Data
+6. Apply migrations:
 
-The system distinguishes durable facts from rebuildable or derived artifacts.
+```bash
+python -m alembic upgrade head
+```
 
-Source of truth:
+7. Start the API:
 
-- SourceDocument
-- DocumentVersion
-- SectionVersion
-- ChunkVersion
+```bash
+uvicorn app.main:create_app --factory --reload
+```
 
-Derived artifacts:
+Alternatively, run the API through Docker Compose:
 
-- EmbeddingRecord
-- EmbeddingCostRecord
+```bash
+docker compose up --build
+```
 
-Projections:
+API docs are available at `http://localhost:8000/docs` when the server is running.
 
-- VectorIndexEntry
+## Environment Variables
 
-Operational data:
+Important variables from `.env.example`:
 
-- IngestionRun
-- IngestionJob
-- QueryTrace
-- AuditLogEntry
-- EvaluationRun
-- EvaluationResult
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `SEED_DOCUMENTS_PATH` | Path to local seed Markdown documents |
+| `LLM_PROVIDER` | LLM provider selection; default is `fake` |
+| `OPENAI_API_KEY` | Optional; required only when `LLM_PROVIDER=openai` |
+| `OPENAI_MODEL` | OpenAI model name when OpenAI is enabled |
+| `OPENAI_TIMEOUT_SECONDS` | Provider request timeout |
+| `OPENAI_MAX_OUTPUT_TOKENS` | Output token cap for OpenAI requests |
+| `OPENAI_INPUT_PRICE_PER_1M_TOKENS_USD` | Estimated input pricing for cost reporting |
+| `OPENAI_OUTPUT_PRICE_PER_1M_TOKENS_USD` | Estimated output pricing for cost reporting |
 
-User-facing data:
+Never commit `.env` or API keys.
 
-- GeneratedAnswer
-- AnswerCitation
-- AnswerFeedback
+## Deterministic Demo
 
-This distinction is central to the system's auditability and rebuildability.
+The reliable local demo uses fake providers and does not require external API keys.
 
-## Seed Document Strategy
+```bash
+python scripts/preview_demo_dataset.py
+python scripts/seed_demo_dataset.py --dry-run
+python scripts/seed_demo_dataset.py
+```
 
-The first source system will be local Markdown documents stored under:
+With the API running:
 
-    seed_documents/
+1. Run semantic retrieval.
+2. Generate a grounded answer with the default fake LLM provider.
+3. Inspect persisted answers, provider calls, and usage summaries.
+4. Seed and run retrieval evaluation:
 
-These documents will simulate realistic enterprise knowledge such as:
+```bash
+python scripts/seed_demo_evaluation_cases.py --dry-run
+python scripts/seed_demo_evaluation_cases.py
+```
 
-- project status reports
-- operational runbooks
-- architecture decision records
-- ownership matrices
-- incident response guides
-- retrieval evaluation guides
-- prompt injection test documents
+Detailed walkthroughs:
 
-Seed documents are part of the system design and testing strategy. They are introduced gradually as ingestion, versioning, chunking, retrieval, and evaluation capabilities are implemented.
+- [End-to-End Demo Guide](docs/demo/manual-flows/end-to-end-demo-guide.md)
+- [Demo API Examples](docs/demo/manual-flows/api-examples.md)
+- [Retrieval Evaluation Workflow](docs/demo/manual-flows/retrieval-evaluation-workflow.md)
+- [Demo Checklist](docs/demo/manual-flows/demo-checklist.md)
 
-## Planned Milestones
+## API Overview
 
-1. Project foundation and architecture documentation
-2. Application scaffold with FastAPI, Docker, PostgreSQL, and tests
-3. Local Markdown ingestion
-4. Document and section versioning
-5. Structure-aware chunking
-6. Fake deterministic embeddings
-7. pgvector semantic search
-8. Keyword and hybrid retrieval
-9. Grounded answers with citations
-10. Prompt injection risk detection
-11. Query tracing and audit logs
-12. Retrieval evaluation
-13. Cost tracking and dry-run indexing
-14. Real embedding and LLM providers
-15. Worker-based ingestion and advanced reliability patterns
+Base prefix: `/api/v1`
 
-## Repository Status
+| Area | Examples |
+|---|---|
+| Health / readiness | `GET /health`, `GET /readiness` |
+| Ingestion | `POST /ingestion/local-seed-documents/discover`, `POST /ingestion/local-seed-documents/runs` |
+| Retrieval | `POST /retrieval/search`, `GET /retrieval/traces`, `GET /retrieval/traces/{trace_id}` |
+| Answers | `POST /answers`, `GET /answers`, `GET /answers/{answer_id}` |
+| Provider calls | `GET /llm-provider-calls`, `GET /llm-provider-calls/{provider_call_id}` |
+| Usage reporting | `GET /llm-usage/summary`, `GET /llm-usage/by-model` |
+| Evaluation | `POST /evaluation/cases`, `POST /evaluation/runs`, `GET /evaluation/results` |
 
-Current status:
+See [Demo API Examples](docs/demo/manual-flows/api-examples.md) for request and response examples.
 
-- Project foundation documentation completed
-- FastAPI application scaffold introduced
-- Docker development environment introduced
-- PostgreSQL with pgvector prepared for persistence
-- SQLAlchemy engine and session foundation introduced
-- Alembic migration environment introduced
-- Database readiness endpoint available
-- SourceDocument and DocumentVersion domain foundation introduced
-- Initial document persistence tables introduced
-- Local Markdown discovery endpoint introduced
-- Persistent local seed ingestion endpoint introduced
-- Initial seed documents committed
-- Markdown section extraction introduced
-- SectionVersion persistence introduced
-- Deterministic chunking introduced
-- ChunkVersion persistence introduced
-- Fake deterministic embedding provider introduced
-- EmbeddingRecord and EmbeddingCostRecord persistence introduced
-- Cross-version embedding reuse introduced
-- Vector index current projection updates introduced
-- Semantic retrieval API introduced
-- Semantic retrieval now returns query_trace_id
-- Retrieval traces can now be listed and inspected by ID
-- Grounded Answer API introduced at POST /api/v1/answers
-- Grounded Answer API now returns answer_id
-- Persisted answers can now be listed and inspected by ID
-- Grounded answer generation now persists LLM provider call records
-- LLM provider calls can now be inspected by answer_id
-- Failed provider calls are exposed through the LLM Provider Call Read API
-- LLM usage can now be summarized by period, provider, and model
-- Retrieval evaluation run API introduced
-- Demo dataset and manual flow planning started
-- Demo document manifest added
-- Demo dataset preview script added
-- Demo seed data loader added
-- Demo presentation checklist added
-- REST Client demo flow added
-- OpenAI provider setup documentation added
-- Real provider observations template added
-- Optional real LLM provider ADR added
-- Fake vs real provider comparison guide added
-- OpenAI manual smoke test guide added
-- Optional real LLM provider configuration guards added
-- Demo API examples added
-- Manual end-to-end demo guide added
-- Deterministic demo documents added
-- End-to-end demo scenario defined
-- Retrieval evaluation case and result APIs introduced
-- Retrieval evaluation runner introduced
-- Retrieval evaluation persistence introduced
-- Retrieval evaluation domain models introduced
-- LLM Usage Reporting API introduced
-- LLM usage reporting repository introduced
-- LLM usage reporting domain models introduced
-- Failed LLM provider calls are now persisted during answer generation
-- LLM provider identity and LLMProviderError introduced
-- Persisted LLM provider calls can now be listed and inspected by ID
-- LLM Provider Call Read API introduced
-- LLM provider call listing repository methods introduced
-- LLM provider call persistence introduced
-- LLM usage metadata added to provider boundary
-- LLM provider call domain models introduced
-- Answer Read API introduced
-- Answer listing repository methods introduced
-- Grounded answers are now persisted
-- AnswerRecord and AnswerCitationRecord persistence introduced
-- Answer persistence domain models introduced
-- Grounded answer service introduced
-- Fake LLM provider boundary introduced
-- Grounded answer domain models introduced
-- Query trace read API introduced
-- Query trace persistence introduced
-- QueryTrace and QueryTraceHit domain models introduced
-- Active vector similarity search introduced
-- Semantic retrieval domain models introduced
-- VectorIndexEntry persistence introduced
-- ChunkEmbeddingLink persistence introduced
+## Testing
+
+```bash
+python -m pytest -q
+python -m ruff check .
+python -m mypy app tests
+```
+
+Automated tests use fake providers by design and do not call OpenAI or other external LLM APIs.
+
+## Provider Strategy
+
+- `FakeEmbeddingProvider` and `FakeLLMProvider` are the defaults for local development and CI.
+- OpenAI is supported as an optional provider behind the same boundary.
+- External provider failures are persisted and auditable through provider call records.
+- Real provider usage depends on local credentials, provider availability, quota, and rate limits.
+- The local deterministic demo does not require external LLM calls.
+
+Manual OpenAI validation is documented in [OpenAI Provider Setup](docs/providers/openai-provider-setup.md) and [OpenAI Manual Smoke Test](docs/providers/openai-manual-smoke-test.md).
+
+## Retrieval Evaluation
+
+Retrieval evaluation provides objective measurement of ranking quality over a known case set.
+
+Metrics include:
+
+- `hit_rate_at_k`
+- `recall_at_k`
+- `reciprocal_rank`
+
+Fake embeddings are deterministic and suitable for local testing, but they do not approximate production semantic embedding quality. Evaluation makes ranking limitations visible and supports future comparisons across embedding providers, chunking strategies, reranking, and retrieval parameters.
+
+See [Retrieval Evaluation Framework](docs/architecture/retrieval-evaluation-framework.md).
+
+## Production Readiness
+
+The platform is not deployed as a production service.
+
+See the [Production Readiness Guide](docs/operations/production-readiness.md) for a clear breakdown of the platform's current production-minded capabilities, local/demo assumptions, and remaining requirements before real deployment.
+
+## Known Limitations
+
+- Fake embeddings are deterministic but not semantic-quality production embeddings.
+- OpenAI is optional and depends on local credentials, provider availability, quota, and rate limits.
+- Authentication and authorization are outside the current repository scope and would be required before exposing the platform as a public or multi-user service.
+- Production deployment manifests, budget enforcement, and circuit breaker behavior are not included in this repository.
+- Keyword and hybrid retrieval are not part of the current application surface.
+- There is no public hosted demo.
+
+## Roadmap
+
+Potential next hardening and quality work:
+
+- stronger embedding provider comparison
+- reranking and hybrid retrieval
+- budget guardrails
+- provider fallback and circuit breaker behavior
+- authentication and authorization if exposed as a public service
+- scheduled retrieval evaluation
+- deployment automation and operational dashboards
 
 ## Documentation
 
 Key documentation areas:
 
-    docs/architecture/
-    docs/adr/
-    docs/experiments/
-    docs/reviews/
+```text
+docs/architecture/
+docs/adr/
+docs/demo/
+docs/operations/
+docs/providers/
+```
 
-Architecture documents explain how the system works.
-
-ADRs explain why important technical decisions were made.
-
-Experiment documents will track retrieval and evaluation changes.
-
-Engineering reviews will capture reliability, scaling, and operational analysis.
-
-## Design Priorities
-
-This project optimizes for:
-
-- correctness
-- maintainability
-- traceability
-- auditability
-- cost awareness
-- retrieval quality
-- operational reliability
-- professional backend architecture
+Architecture documents explain how the system works. ADRs record technical decisions. Demo and provider docs cover manual workflows and optional real-provider validation.

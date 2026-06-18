@@ -64,7 +64,7 @@ Use this checklist before presenting the Incremental RAG Indexing Platform.
 - [ ] `GET /api/v1/llm-provider-calls` returns provider call records.
 - [ ] Successful fake provider call is visible.
 - [ ] Failed provider calls are visible when failures were simulated.
-- [ ] Failed OpenAI calls are recorded if provider rate limits occur.
+- [ ] Failed provider calls are visible when failures are simulated or occur with an optional external provider.
 
 ## Usage Reporting
 
@@ -98,5 +98,5 @@ Use this checklist before presenting the Incremental RAG Indexing Platform.
 - [ ] Correct chunks may appear in top_k without ranking first.
 - [ ] Fake LLM answers may summarize the top-ranked chunk.
 - [ ] Retrieval evaluation exists to make ranking quality measurable.
-- [ ] OpenAI smoke tests may fail due to provider rate limits.
-- [ ] A failed OpenAI provider call is not a successful real-provider demo.
+- [ ] Optional external provider usage depends on local credentials, provider availability, quota, and rate limits.
+- [ ] External provider failures are persisted and auditable when they occur.

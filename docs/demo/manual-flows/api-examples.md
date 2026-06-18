@@ -290,4 +290,4 @@ The examples use fake retrieval providers by default.
 
 Real LLM provider integration should be enabled only through explicit runtime configuration and should never be required for automated tests.
 
-OpenAI rate-limit failures are valid observability data, but they are not a successful real-provider demo.
+OpenAI is supported as an optional provider. Fake providers are the default for local development and CI. External provider failures are persisted and auditable when they occur.
