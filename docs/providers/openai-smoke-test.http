@@ -1,0 +1,44 @@
+@baseUrl = http://localhost:8000
+@answerId = replace-with-answer-id
+@providerCallId = replace-with-provider-call-id
+
+### Health check
+GET {{baseUrl}}/health
+
+
+### Generate grounded answer using configured OpenAI provider
+POST {{baseUrl}}/api/v1/answers
+Content-Type: application/json
+
+{
+  "query": "Who owns Project Atlas?",
+  "top_k": 5,
+  "retrieval_provider": "fake",
+  "retrieval_model_name": "fake-embedding-v1",
+  "llm_provider": "openai",
+  "llm_model_name": "gpt-5.4-mini"
+}
+
+
+### List persisted answers
+GET {{baseUrl}}/api/v1/answers
+
+
+### Read persisted answer
+GET {{baseUrl}}/api/v1/answers/{{answerId}}
+
+
+### List LLM provider calls
+GET {{baseUrl}}/api/v1/llm-provider-calls
+
+
+### Read LLM provider call
+GET {{baseUrl}}/api/v1/llm-provider-calls/{{providerCallId}}
+
+
+### LLM usage summary
+GET {{baseUrl}}/api/v1/llm-usage/summary
+
+
+### LLM usage by model
+GET {{baseUrl}}/api/v1/llm-usage/by-model

@@ -218,6 +218,12 @@ Current status:
 - Demo seed data loader added
 - Demo presentation checklist added
 - REST Client demo flow added
+- OpenAI provider setup documentation added
+- Real provider observations template added
+- Optional real LLM provider ADR added
+- Fake vs real provider comparison guide added
+- OpenAI manual smoke test guide added
+- Optional real LLM provider configuration guards added
 - Demo API examples added
 - Manual end-to-end demo guide added
 - Deterministic demo documents added

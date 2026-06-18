@@ -22,6 +22,13 @@ class Settings(BaseSettings):
         default="postgresql+psycopg://rag_user:rag_password@localhost:5432/rag_indexing"
     )
     seed_documents_path: str = Field(default="seed_documents")
+    llm_provider: str = Field(default="fake")
+    openai_api_key: str | None = Field(default=None)
+    openai_model: str = Field(default="gpt-5.4-mini")
+    openai_timeout_seconds: float = Field(default=30.0)
+    openai_max_output_tokens: int = Field(default=800)
+    openai_input_price_per_1m_tokens_usd: str = Field(default="0.75")
+    openai_output_price_per_1m_tokens_usd: str = Field(default="4.50")
 
 
 @lru_cache
