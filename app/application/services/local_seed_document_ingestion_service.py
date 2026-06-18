@@ -11,6 +11,10 @@ from app.application.services.markdown_chunking_service import MarkdownChunkingS
 from app.application.services.markdown_section_extraction_service import (
     MarkdownSectionExtractionService,
 )
+from app.application.services.source_document_discovery import (
+    SourceDocumentDiscoveryResult,
+    SourceDocumentDiscoveryService,
+)
 from app.application.services.vector_indexing_service import (
     SectionChunks,
     VectorIndexingService,
@@ -77,8 +81,14 @@ class LocalSeedDocumentIngestionResult:
 class LocalSeedDocumentIngestionService:
     """Persists local seed Markdown documents as versioned source documents."""
 
-    def __init__(self, source_path: Path) -> None:
+    def __init__(
+        self,
+        source_path: Path,
+        *,
+        discovery_service: SourceDocumentDiscoveryService | None = None,
+    ) -> None:
         self._source_path = source_path
+        self._discovery_service = discovery_service
         self._section_extraction_service = MarkdownSectionExtractionService()
         self._chunking_service = MarkdownChunkingService()
         self._embedding_service = ChunkEmbeddingService(provider=FakeEmbeddingProvider())
@@ -88,15 +98,13 @@ class LocalSeedDocumentIngestionService:
         self,
         transaction: DocumentIngestionTransaction,
     ) -> LocalSeedDocumentIngestionResult:
-        run = IngestionRun.start(source_system=SourceSystem.LOCAL_SEED_DOCUMENTS)
+        discovery_result = self._discover_documents()
+
+        run = IngestionRun.start(source_system=discovery_result.source_system)
         transaction.ingestion_runs.save(run)
         transaction.flush()
 
         try:
-            discovery_result = LocalSeedDocumentDiscoveryService(
-                source_path=self._source_path,
-            ).discover()
-
             documents_seen = len(discovery_result.documents)
 
             documents_changed = 0
@@ -157,7 +165,7 @@ class LocalSeedDocumentIngestionService:
             return LocalSeedDocumentIngestionResult(
                 run_id=run.id,
                 source_system=run.source_system,
-                source_path=str(self._source_path),
+                source_path=discovery_result.source_path,
                 status=run.status,
                 documents_seen=documents_seen,
                 documents_changed=documents_changed,
@@ -176,6 +184,14 @@ class LocalSeedDocumentIngestionService:
         except Exception:
             transaction.rollback()
             raise
+
+    def _discover_documents(self) -> SourceDocumentDiscoveryResult:
+        if self._discovery_service is not None:
+            return self._discovery_service.discover()
+
+        return LocalSeedDocumentDiscoveryService(
+            source_path=self._source_path,
+        ).discover()
 
     def _ingest_candidate(
         self,

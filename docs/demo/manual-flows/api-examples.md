@@ -29,6 +29,31 @@ or:
 
 The answer request body should not include `llm_provider`, `llm_model_name`, `retrieval_provider`, or `retrieval_model_name`.
 
+## Local Setup
+
+Start Postgres and apply migrations:
+
+    docker compose up -d postgres
+    python -m alembic upgrade head
+
+Validate the dataset:
+
+    python scripts/preview_demo_dataset.py
+
+Preview indexing without DB writes:
+
+    python scripts/seed_demo_dataset.py --dry-run
+
+Index the dataset:
+
+    python scripts/seed_demo_dataset.py
+
+Start the API:
+
+    uvicorn app.main:create_app --factory --reload
+
+Or use the Docker-based API startup flow if preferred.
+
 ## Health Check
 
 Request:
@@ -40,19 +65,6 @@ Expected behavior:
 - API responds successfully
 - local environment is running
 
-## Preview Demo Dataset
-
-The dataset preview runs as a local script:
-
-    python scripts/preview_demo_dataset.py
-
-Expected behavior:
-
-- dataset name is printed
-- dataset version is printed
-- four demo documents are listed
-- each document has a checksum
-
 ## Semantic Retrieval
 
 Request:
@@ -60,7 +72,7 @@ Request:
     curl -X POST http://localhost:8000/api/v1/retrieval/search \
       -H "Content-Type: application/json" \
       -d '{
-        "query": "What is Project Atlas?",
+        "query": "Who owns Project Atlas?",
         "top_k": 5,
         "provider": "fake",
         "model_name": "fake-embedding-v1"
@@ -69,8 +81,8 @@ Request:
 Expected behavior:
 
 - response includes retrieval results
-- top results should reference Project Atlas content
-- a query trace is created or can be inspected afterward
+- response includes query_trace_id
+- Project Atlas ownership chunk should appear in top_k
 
 ## Query Trace List
 
@@ -81,7 +93,7 @@ Request:
 Expected behavior:
 
 - response includes recent query traces
-- the latest trace should correspond to the retrieval request
+- latest trace should correspond to the retrieval request
 
 ## Query Trace Detail
 
@@ -110,14 +122,14 @@ Request:
 
 Expected behavior:
 
-- response includes an answer
-- response includes citations when retrieval returns context
+- response returns HTTP 200
 - answer is persisted
 - provider call is persisted
+- usage summary is updated
 
-If `LLM_PROVIDER=openai`, the answer generation call uses the configured OpenAI provider.
+With fake embeddings, answer quality depends on the highest-ranked retrieved chunk.
 
-If `LLM_PROVIDER=fake`, the answer generation call uses the fake provider.
+If the correct chunk appears in top_k but not first, the persisted answer may not be ideal. Use query traces and retrieval evaluation to inspect the ranking.
 
 ## List Answers
 
@@ -153,6 +165,7 @@ Expected behavior:
 - response includes provider call records
 - latest call should match the grounded answer request
 - provider/model/status should be inspectable
+- failed provider calls should be visible when provider errors occur
 
 ## LLM Provider Call Detail
 
@@ -202,10 +215,10 @@ Request shape:
     curl -X POST http://localhost:8000/api/v1/evaluation/cases \
       -H "Content-Type: application/json" \
       -d '{
-        "name": "Project Atlas overview",
-        "query": "What is Project Atlas?",
+        "name": "Project Atlas ownership",
+        "query": "Who owns Project Atlas?",
         "expected_chunk_version_ids": ["replace-with-indexed-chunk-version-id"],
-        "tags": ["project-atlas", "overview"]
+        "tags": ["project-atlas", "ownership"]
       }'
 
 Expected behavior:
@@ -259,19 +272,22 @@ Expected behavior:
 Use this sequence when presenting the project:
 
 1. Preview demo dataset.
-2. Load or index demo documents using the existing ingestion flow.
-3. Run semantic retrieval.
-4. Inspect query trace.
-5. Generate grounded answer.
-6. Inspect persisted answer.
-7. Inspect provider call record.
-8. Inspect usage summary.
-9. Create or inspect evaluation cases.
-10. Run retrieval evaluation.
-11. Inspect evaluation results.
+2. Dry-run demo indexing.
+3. Index demo dataset.
+4. Run semantic retrieval.
+5. Inspect query trace.
+6. Generate grounded answer.
+7. Inspect persisted answer.
+8. Inspect provider call record.
+9. Inspect usage summary.
+10. Create or inspect evaluation cases.
+11. Run retrieval evaluation.
+12. Inspect evaluation results.
 
 ## Notes
 
 The examples use fake retrieval providers by default.
 
 Real LLM provider integration should be enabled only through explicit runtime configuration and should never be required for automated tests.
+
+OpenAI rate-limit failures are valid observability data, but they are not a successful real-provider demo.

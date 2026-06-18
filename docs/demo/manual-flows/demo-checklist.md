@@ -1,87 +1,94 @@
 # Demo Checklist
 
-Use this checklist before presenting the project.
+Use this checklist before presenting the Incremental RAG Indexing Platform.
 
 ## Environment
 
-- [ ] Application starts locally.
-- [ ] Database is running.
+- [ ] Postgres is running.
 - [ ] Migrations are applied.
-- [ ] API health endpoint responds.
-- [ ] Swagger or API docs are accessible.
-- [ ] Fake providers are enabled by default.
-- [ ] No external API key is required.
+- [ ] API starts successfully.
+- [ ] `.env` is ignored by Git.
+- [ ] `LLM_PROVIDER=fake` is used for default local demo.
+- [ ] No real API keys are committed.
 
-## Dataset
+## Dataset Validation
 
-- [ ] `python scripts/preview_demo_dataset.py` works.
-- [ ] Dataset name is `acme_internal_knowledge_demo`.
-- [ ] Dataset version is `1.0.0`.
+- [ ] `python scripts/preview_demo_dataset.py` runs successfully.
+- [ ] Dataset name is shown.
+- [ ] Dataset version is shown.
 - [ ] Four demo documents are listed.
-- [ ] Each document has a checksum.
-- [ ] Manifest paths resolve correctly.
+- [ ] Checksums are shown for each document.
 
-## Indexing
+## Dry Run
 
-- [ ] Demo documents are loaded.
-- [ ] Document versions exist.
-- [ ] Sections or chunks exist.
-- [ ] Embeddings exist.
-- [ ] Vector index entries exist.
+- [ ] `python scripts/seed_demo_dataset.py --dry-run` runs successfully.
+- [ ] Manifest is loaded.
+- [ ] Documents are discovered.
+- [ ] No database writes are performed.
+
+## Demo Indexing
+
+- [ ] `python scripts/seed_demo_dataset.py` runs successfully.
+- [ ] Demo documents are processed through the real ingestion pipeline.
+- [ ] Document versions are created or unchanged documents are skipped.
+- [ ] Chunks are available.
+- [ ] Embeddings are available.
+- [ ] Vector index entries are available.
+- [ ] Rerun is safe for unchanged content.
 
 ## Retrieval
 
-- [ ] `What is Project Atlas?` retrieves Project Atlas content.
-- [ ] `Who owns Project Atlas?` retrieves ownership content.
-- [ ] `What should support do before escalating a customer issue?` retrieves escalation policy content.
-- [ ] `What is the incident severity process?` retrieves incident response content.
-- [ ] `What should new engineers do in their first week?` retrieves onboarding content.
+- [ ] `POST /api/v1/retrieval/search` returns non-empty results.
+- [ ] Query trace ID is returned.
+- [ ] Project Atlas ownership chunk appears in top_k for ownership query.
+- [ ] Retrieval ranking is inspected rather than assumed perfect.
 
-## Query Tracing
+## Query Trace
 
-- [ ] Query trace is created after retrieval.
-- [ ] Query trace lists retrieval hits.
-- [ ] Query trace includes provider/model metadata.
-- [ ] Query trace can be read through the API.
+- [ ] `GET /api/v1/retrieval/traces` returns traces.
+- [ ] Latest trace can be read.
+- [ ] Trace includes query text.
+- [ ] Trace includes hit records.
+- [ ] Trace includes provider/model metadata.
 
-## Grounded Answers
+## Grounded Answer
 
-- [ ] Answer generation returns an answer.
-- [ ] Answer includes citations.
+- [ ] `POST /api/v1/answers` returns HTTP 200 with valid payload.
 - [ ] Answer is persisted.
-- [ ] Citations are persisted.
-- [ ] Answer can be read after generation.
+- [ ] Answer includes status.
+- [ ] Answer includes query_trace_id.
+- [ ] Citations exist when context is available.
 
-## Provider Observability
+## Provider Calls
 
-- [ ] LLM provider call record is created.
-- [ ] Provider/model are recorded.
-- [ ] Status is recorded.
-- [ ] Usage metadata is recorded when available.
-- [ ] Failed calls can be inspected when simulated.
+- [ ] `GET /api/v1/llm-provider-calls` returns provider call records.
+- [ ] Successful fake provider call is visible.
+- [ ] Failed provider calls are visible when failures were simulated.
+- [ ] Failed OpenAI calls are recorded if provider rate limits occur.
 
 ## Usage Reporting
 
-- [ ] Usage summary returns call_count.
-- [ ] Usage summary returns succeeded_count.
-- [ ] Usage summary returns failed_count.
-- [ ] Usage summary returns token totals when available.
-- [ ] Usage by model groups calls by provider/model.
+- [ ] `GET /api/v1/llm-usage/summary` returns aggregate usage.
+- [ ] call_count is updated.
+- [ ] succeeded_count is updated.
+- [ ] failed_count is updated when failures occur.
+- [ ] token totals are recorded when available.
+- [ ] estimated cost is recorded when available.
 
-## Retrieval Evaluation
+## Evaluation
 
-- [ ] Evaluation cases exist.
-- [ ] Evaluation run executes.
-- [ ] Case results are persisted.
-- [ ] Summary includes hit_rate_at_k.
-- [ ] Summary includes mean_recall_at_k.
-- [ ] Summary includes mean_reciprocal_rank.
+- [ ] Evaluation cases can be created or inspected.
+- [ ] Evaluation run can be executed.
+- [ ] Results are persisted.
+- [ ] hit_rate_at_k is visible.
+- [ ] recall_at_k is visible.
+- [ ] reciprocal rank is visible.
 
-## Portfolio Readiness
+## Known Limitations To Explain
 
-- [ ] Demo can be explained in under five minutes.
-- [ ] README points to demo docs.
-- [ ] Architecture docs explain the major components.
-- [ ] ADRs explain important decisions.
-- [ ] Tests pass.
-- [ ] No secrets are committed.
+- [ ] Fake embeddings are deterministic but not high-quality semantic embeddings.
+- [ ] Correct chunks may appear in top_k without ranking first.
+- [ ] Fake LLM answers may summarize the top-ranked chunk.
+- [ ] Retrieval evaluation exists to make ranking quality measurable.
+- [ ] OpenAI smoke tests may fail due to provider rate limits.
+- [ ] A failed OpenAI provider call is not a successful real-provider demo.

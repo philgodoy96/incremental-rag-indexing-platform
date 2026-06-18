@@ -7,7 +7,11 @@ This guide explains how to manually demonstrate the Incremental RAG Indexing Pla
 The demo is designed to show the full platform behavior:
 
 - demo dataset validation
-- document indexing
+- manifest-driven indexing
+- document versioning
+- chunking
+- embedding generation
+- vector index projection
 - semantic retrieval
 - query trace inspection
 - grounded answer generation
@@ -20,7 +24,7 @@ The default demo uses fake providers so it can run without external API keys.
 
 ## Demo Dataset
 
-The demo dataset is defined under:
+The deterministic demo dataset is defined under:
 
     demo/documents
 
@@ -28,54 +32,100 @@ The dataset manifest is:
 
     demo/documents/manifest.json
 
-The manifest defines the dataset name, version, document file paths, stable external IDs, source URIs, and tags.
+The manifest defines:
 
-## Validate Demo Dataset
+- dataset name
+- dataset version
+- document file paths
+- stable external IDs
+- source URIs
+- titles
+- tags
 
-Run:
-
-    python scripts/preview_demo_dataset.py
-
-Expected output:
-
-    Dataset: acme_internal_knowledge_demo
-    Version: 1.0.0
-    Documents: 4
-
-The output should list:
+The demo documents are:
 
 - Project Atlas Brief
 - Incident Response Playbook
 - Customer Support Escalation Policy
 - Engineering Onboarding Guide
 
-Each document should include:
+## Validate Demo Dataset Without Database Writes
 
-- external_id
-- source_uri
-- file_path
-- tags
-- checksum
+Run:
 
-## Start the Application
+    python scripts/preview_demo_dataset.py
 
-Start the local environment using the project setup instructions.
+Expected behavior:
 
-Typical flow:
+- dataset name is printed
+- dataset version is printed
+- four demo documents are listed
+- each document has a checksum
 
-    docker compose up --build
+This command does not write to the database.
 
-Then verify the API is available:
+## Preview Demo Indexing Without Database Writes
 
-    GET /health
+Run:
 
-If the project exposes Swagger UI, open:
+    python scripts/seed_demo_dataset.py --dry-run
 
-    /docs
+Expected behavior:
+
+- manifest is loaded
+- demo documents are discovered
+- no source documents are persisted
+- no chunks are created
+- no embeddings are created
+- no vector index entries are created
+
+Use this before running the real seed command.
+
+## Index Demo Dataset
+
+Ensure Postgres is running and migrations are applied.
+
+Typical local flow:
+
+    docker compose up -d postgres
+    python -m alembic upgrade head
+    python scripts/seed_demo_dataset.py
+
+Expected behavior on first run:
+
+- four demo documents are discovered
+- four source documents are created or updated
+- document versions are created
+- sections and chunks are created
+- fake embeddings are generated
+- current vector index entries are projected
+
+Expected behavior on unchanged rerun:
+
+- documents are skipped as unchanged
+- no duplicate document versions are created
+- existing vector index entries remain available
+
+## Why This Command Exists
+
+The preview command only validates files from disk.
+
+The seed command sends the deterministic demo dataset through the real ingestion pipeline:
+
+    DemoDatasetDiscoveryService
+        -> LocalSeedDocumentIngestionService
+        -> document ingestion transaction
+        -> chunking
+        -> embedding
+        -> vector index projection
+
+The command should not duplicate ingestion logic.
+
+It should not manually insert vector index rows.
 
 ## Provider Configuration
 
-The answer API request selects retrieval provider/model through request fields:
+The retrieval provider and retrieval model are selected in request bodies using:
 
 - provider
 - model_name
@@ -88,110 +138,11 @@ or:
 
     LLM_PROVIDER=openai
 
-This means the request body should not include `llm_provider`, `llm_model_name`, `retrieval_provider`, or `retrieval_model_name`.
+The answer request body should not include `llm_provider`, `llm_model_name`, `retrieval_provider`, or `retrieval_model_name`.
 
-## Load or Index Demo Documents
+For the default local demo, use:
 
-Use the existing ingestion/indexing flow in the project to load the demo documents.
-
-The important requirement is that the four demo documents become available as indexed chunks and vector index entries.
-
-The documents to load are:
-
-- demo/documents/project-atlas-brief.md
-- demo/documents/incident-response-playbook.md
-- demo/documents/customer-support-escalation-policy.md
-- demo/documents/engineering-onboarding-guide.md
-
-After indexing, verify that the system has document versions, chunk versions, embeddings, and vector index entries.
-
-If vector index entries are empty, semantic retrieval will return no results.
-
-## Demo Question Set
-
-Use the following demo questions:
-
-### Project Atlas
-
-    What is Project Atlas?
-
-Expected retrieval target:
-
-- Project Atlas Brief
-- Overview section
-
-Expected answer behavior:
-
-- explain that Project Atlas is an internal knowledge intelligence initiative
-- mention grounded AI answers
-- cite Project Atlas Brief
-
-### Project Ownership
-
-    Who owns Project Atlas?
-
-Expected retrieval target:
-
-- Project Atlas Brief
-- Ownership section
-
-Expected answer behavior:
-
-- identify the Platform Intelligence team
-- mention Maya Chen as accountable engineering manager
-- mention Jordan Lee as product lead
-- cite Project Atlas Brief
-
-### Support Escalation
-
-    What should support do before escalating a customer issue?
-
-Expected retrieval target:
-
-- Customer Support Escalation Policy
-- Pre-Escalation Checklist section
-
-Expected answer behavior:
-
-- mention account verification
-- mention affected workspace
-- mention reproduction or validation
-- mention request IDs, timestamps, logs, screenshots, and attempted steps
-- cite Customer Support Escalation Policy
-
-### Incident Response
-
-    What is the incident severity process?
-
-Expected retrieval target:
-
-- Incident Response Playbook
-- Severity Levels and Response Process sections
-
-Expected answer behavior:
-
-- explain SEV1, SEV2, and SEV3
-- mention incident commander for SEV1 and SEV2
-- mention mitigation before perfect diagnosis during active impact
-- cite Incident Response Playbook
-
-### Engineering Onboarding
-
-    What should new engineers do in their first week?
-
-Expected retrieval target:
-
-- Engineering Onboarding Guide
-- First Week section
-
-Expected answer behavior:
-
-- mention local development setup
-- mention running the test suite
-- mention reading architecture docs
-- mention reviewing recent pull requests
-- mention completing a small documentation or test improvement
-- cite Engineering Onboarding Guide
+    LLM_PROVIDER=fake
 
 ## Run Semantic Retrieval
 
@@ -199,20 +150,48 @@ Use the semantic retrieval endpoint:
 
     POST /api/v1/retrieval/search
 
-Example request shape:
+Example request:
 
     {
-      "query": "What is Project Atlas?",
+      "query": "Who owns Project Atlas?",
       "top_k": 5,
       "provider": "fake",
       "model_name": "fake-embedding-v1"
     }
 
-Expected behavior:
+Expected behavior after demo indexing:
 
 - response includes retrieval results
-- response includes or links to a query trace identifier
-- top results should come from Project Atlas Brief
+- response includes a query trace identifier
+- at least one top_k result should reference Project Atlas content
+- `project-atlas-brief/ownership` should be retrievable for ownership questions
+
+Example successful result characteristics:
+
+- `results` is not empty
+- result items include vector_index_entry_id
+- result items include chunk_version_id
+- result items include content
+- result items include heading_context
+- result items include distance
+
+## Known Fake Embedding Limitation
+
+The fake embedding provider is deterministic and useful for local testing, but it is not a high-quality semantic model.
+
+This means the correct chunk may appear in top_k without always ranking first.
+
+For example, a query like:
+
+    Who owns Project Atlas?
+
+may retrieve the Project Atlas ownership chunk in the top_k results while another unrelated chunk ranks above it.
+
+This is acceptable for the fake-provider demo.
+
+It is also why the platform includes retrieval evaluation APIs and query tracing.
+
+A production embedding provider should improve ranking quality.
 
 ## Inspect Query Trace
 
@@ -235,7 +214,7 @@ Use the grounded answer endpoint:
 
     POST /api/v1/answers
 
-Example request shape:
+Example request:
 
     {
       "question": "Who owns Project Atlas?",
@@ -244,17 +223,17 @@ Example request shape:
       "model_name": "fake-embedding-v1"
     }
 
-Expected behavior:
+Expected behavior with `LLM_PROVIDER=fake`:
 
-- answer is returned
-- answer includes citations when retrieval returns context
+- response returns HTTP 200
 - answer is persisted
 - provider call is persisted
-- query trace is linked or inspectable
+- usage summary is updated
+- citations are available when retrieved context exists
 
-If `LLM_PROVIDER=openai`, the LLM call uses the configured OpenAI provider.
+If retrieval returns context but the fake embedding ranking is imperfect, the fake answer may summarize the highest-ranked chunk rather than the ideal chunk.
 
-If `LLM_PROVIDER=fake`, the LLM call uses the fake provider.
+That is a retrieval quality issue, not an ingestion failure.
 
 ## Inspect Persisted Answers
 
@@ -265,9 +244,10 @@ Use the answer read API:
 
 Expected behavior:
 
-- answer record exists
-- citations are persisted when context was available
-- answer can be audited after generation
+- latest answer record exists
+- status is inspectable
+- query_trace_id is available
+- provider/model metadata is available
 
 ## Inspect LLM Provider Calls
 
@@ -279,11 +259,14 @@ Use the LLM provider call read API:
 Expected behavior:
 
 - provider call records exist
-- records include provider and model
-- records include status
-- records include latency metadata when available
-- records include usage metadata when available
-- failed provider calls are inspectable when failures are simulated
+- successful fake calls have provider `fake`
+- fake calls should have model `fake-llm-v1`
+- failed real provider calls are persisted with error messages
+- failed real provider calls may have answer_id set to null
+
+A failed OpenAI call caused by rate limits is still a useful observability signal.
+
+It proves failed provider calls are captured, but it does not prove successful real-provider answer generation.
 
 ## Inspect Usage and Cost Summary
 
@@ -295,10 +278,71 @@ Use the usage reporting API:
 Expected behavior:
 
 - summary includes call_count
-- summary includes succeeded_count and failed_count
+- summary includes succeeded_count
+- summary includes failed_count
 - summary includes token totals when available
 - summary includes estimated_cost_usd
-- by-model endpoint groups by provider/model
+- by-model endpoint groups by provider and model
+
+For fake provider calls, estimated cost is expected to be zero.
+
+For failed OpenAI calls with no usage metadata, token totals may remain zero.
+
+## Demo Question Set
+
+Use the following demo questions.
+
+### Project Atlas
+
+    What is Project Atlas?
+
+Expected retrieval target:
+
+- Project Atlas Brief
+- Overview section
+
+### Project Ownership
+
+    Who owns Project Atlas?
+
+Expected retrieval target:
+
+- Project Atlas Brief
+- Ownership section
+
+Expected answer behavior with strong retrieval:
+
+- identify the Platform Intelligence team
+- mention Maya Chen as accountable engineering manager
+- mention Jordan Lee as product lead
+- cite Project Atlas Brief
+
+### Support Escalation
+
+    What should support do before escalating a customer issue?
+
+Expected retrieval target:
+
+- Customer Support Escalation Policy
+- Pre-Escalation Checklist section
+
+### Incident Response
+
+    What is the incident severity process?
+
+Expected retrieval target:
+
+- Incident Response Playbook
+- Severity Levels and Response Process sections
+
+### Engineering Onboarding
+
+    What should new engineers do in their first week?
+
+Expected retrieval target:
+
+- Engineering Onboarding Guide
+- First Week section
 
 ## Run Retrieval Evaluation
 
@@ -336,13 +380,15 @@ Expected behavior:
 The demo is successful when the reviewer can verify:
 
 - demo documents exist and are deterministic
-- indexed chunks are available
+- demo dataset can be previewed without DB writes
+- demo dataset can be indexed through the real pipeline
 - vector index entries are available
-- retrieval returns relevant chunks
+- retrieval returns chunks
 - query traces explain retrieval
-- grounded answers include citations
-- answers and citations are persisted
+- grounded answers can be generated
+- answers are persisted
 - provider calls are auditable
+- failed provider calls are auditable
 - usage and cost reporting works
 - retrieval evaluation produces metrics
 
@@ -352,10 +398,11 @@ The demo is successful when the reviewer can verify:
 
 Check:
 
-- documents were indexed
-- embeddings were generated
+- `python scripts/seed_demo_dataset.py` was run
+- Postgres was running during seeding
+- migrations were applied
 - vector index entries exist
-- provider/model values match the indexed embeddings
+- provider/model values match indexed embeddings
 - top_k is high enough
 
 ### Answer returns insufficient context
@@ -366,14 +413,47 @@ Check:
 - vector index entries are not empty
 - the demo documents were indexed before answer generation
 
-### Answer has weak citations
+### Answer returns HTTP 422
 
-Check:
+Check the request body.
 
-- retrieval returned the expected chunks
-- answer generation used retrieved chunks
-- citations were persisted
-- fake provider behavior is deterministic and limited
+The Answer API expects:
+
+    {
+      "question": "Who owns Project Atlas?",
+      "top_k": 5,
+      "provider": "fake",
+      "model_name": "fake-embedding-v1"
+    }
+
+It does not accept answer requests using `query`, `llm_provider`, `llm_model_name`, `retrieval_provider`, or `retrieval_model_name`.
+
+### Answer returns HTTP 500
+
+Check runtime provider configuration.
+
+If using fake provider:
+
+    LLM_PROVIDER=fake
+
+If using OpenAI provider:
+
+    LLM_PROVIDER=openai
+    OPENAI_API_KEY=your-local-secret
+
+A common configuration error is using `OPEN_AI_API_KEY` instead of `OPENAI_API_KEY`.
+
+### OpenAI calls fail with rate limit
+
+This means the real provider request reached OpenAI but was rejected by provider limits.
+
+The failure should be persisted as a failed provider call.
+
+This does not prove successful real-provider answer generation.
+
+Switch back to fake provider for local demo reliability:
+
+    LLM_PROVIDER=fake
 
 ### Usage summary is empty
 
