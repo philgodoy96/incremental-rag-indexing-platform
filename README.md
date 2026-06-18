@@ -214,6 +214,8 @@ Current status:
 - Retrieval evaluation run API introduced
 - Demo dataset and manual flow planning started
 - Demo document manifest added
+- Demo dataset preview script added
+- Demo seed data loader added
 - Deterministic demo documents added
 - End-to-end demo scenario defined
 - Retrieval evaluation case and result APIs introduced
