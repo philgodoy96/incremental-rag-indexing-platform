@@ -9,6 +9,7 @@ from app.providers.llm import (
     LLMProviderError,
     LLMUsageMetadata,
 )
+from app.providers.llm_provider_factory import build_llm_provider
 from app.providers.openai_llm_provider import OpenAILLMProvider
 
 __all__ = [
@@ -17,6 +18,7 @@ __all__ = [
     "FakeEmbeddingProvider",
     "FakeLLMProvider",
     "OpenAILLMProvider",
+    "build_llm_provider",
     "LLMContextChunk",
     "LLMGenerationRequest",
     "LLMGenerationResponse",
