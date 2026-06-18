@@ -42,17 +42,15 @@ GET {{baseUrl}}/api/v1/retrieval/traces
 GET {{baseUrl}}/api/v1/retrieval/traces/{{queryTraceId}}
 
 
-### Generate grounded answer
+### Generate grounded answer using configured LLM provider
 POST {{baseUrl}}/api/v1/answers
 Content-Type: application/json
 
 {
-  "query": "Who owns Project Atlas?",
+  "question": "Who owns Project Atlas?",
   "top_k": 5,
-  "retrieval_provider": "fake",
-  "retrieval_model_name": "fake-embedding-v1",
-  "llm_provider": "fake",
-  "llm_model_name": "fake-llm-v1"
+  "provider": "fake",
+  "model_name": "fake-embedding-v1"
 }
 
 

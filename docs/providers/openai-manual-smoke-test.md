@@ -71,6 +71,19 @@ Or, if running locally without Docker:
 
 Adjust the command based on the actual project setup.
 
+## Provider Selection
+
+The answer API request selects retrieval provider/model through:
+
+- provider
+- model_name
+
+The LLM provider is selected through runtime configuration:
+
+    LLM_PROVIDER=openai
+
+The answer request body should not include `llm_provider`, `llm_model_name`, `retrieval_provider`, or `retrieval_model_name`.
+
 ## Recommended Smoke Test Question
 
 Use a question that should be answerable from the demo dataset:
@@ -82,7 +95,7 @@ Expected answer:
 - identifies Platform Intelligence team
 - mentions Maya Chen as accountable engineering manager
 - mentions Jordan Lee as product lead if enough context was retrieved
-- includes citations
+- includes citations when retrieval returns context
 - does not invent unsupported details
 
 ## Generate Grounded Answer
@@ -94,19 +107,17 @@ Request shape:
 Example payload:
 
     {
-      "query": "Who owns Project Atlas?",
+      "question": "Who owns Project Atlas?",
       "top_k": 5,
-      "retrieval_provider": "fake",
-      "retrieval_model_name": "fake-embedding-v1",
-      "llm_provider": "openai",
-      "llm_model_name": "gpt-5.4-mini"
+      "provider": "fake",
+      "model_name": "fake-embedding-v1"
     }
 
 Notes:
 
 - retrieval can still use the fake embedding provider
-- answer generation uses OpenAI when the runtime provider is configured as OpenAI
-- if the API request model requires provider/model fields, use values that match the runtime configuration
+- answer generation uses OpenAI when `LLM_PROVIDER=openai`
+- if retrieval returns no chunks, the answer flow may return insufficient context instead of calling the LLM
 
 ## Inspect Answer
 
@@ -118,7 +129,7 @@ After generating the answer, inspect persisted answers:
 Check:
 
 - answer was persisted
-- citations were persisted
+- citations were persisted when context was available
 - answer is grounded in retrieved chunks
 
 ## Inspect Provider Call
