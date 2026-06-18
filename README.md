@@ -246,6 +246,8 @@ Potential next hardening and quality work:
 
 ## Documentation
 
+- [Project Status](docs/project-status.md)
+
 Key documentation areas:
 
 ```text

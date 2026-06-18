@@ -63,7 +63,6 @@ Use this checklist before presenting the Incremental RAG Indexing Platform.
 
 - [ ] `GET /api/v1/llm-provider-calls` returns provider call records.
 - [ ] Successful fake provider call is visible.
-- [ ] Failed provider calls are visible when failures were simulated.
 - [ ] Failed provider calls are visible when failures are simulated or occur with an optional external provider.
 
 ## Usage Reporting
@@ -83,6 +82,7 @@ Use this checklist before presenting the Incremental RAG Indexing Platform.
 - [ ] Rerun skips identical cases.
 - [ ] `GET /api/v1/evaluation/cases` lists the five demo cases.
 - [ ] Expected chunk version IDs are populated.
+
 ## Evaluation
 
 - [ ] Evaluation cases can be created or inspected.

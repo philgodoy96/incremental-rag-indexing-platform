@@ -52,7 +52,7 @@ The answer-scoped endpoint validates that the parent answer exists.
 
 ### Keep Provider Calls Database-Only
 
-Rejected because direct database inspection is not enough for product workflows, admin tooling, or portfolio-grade API design.
+Rejected because direct database inspection is not enough for product workflows, admin tooling, or operational API design.
 
 ### Expose Provider Calls Only Through Answer Detail
 

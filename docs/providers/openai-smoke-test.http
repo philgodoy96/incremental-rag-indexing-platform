@@ -3,7 +3,7 @@
 @providerCallId = replace-with-provider-call-id
 
 ### Health check
-GET {{baseUrl}}/health
+GET {{baseUrl}}/api/v1/health
 
 
 ### Generate grounded answer using configured OpenAI provider
