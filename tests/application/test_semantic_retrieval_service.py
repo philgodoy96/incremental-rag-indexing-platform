@@ -7,6 +7,7 @@ from app.application.services.semantic_retrieval_service import (
     SemanticRetrievalService,
 )
 from app.domain.documents.entities import VectorIndexEntry
+from app.domain.documents.enums import SourceSystem
 from app.domain.documents.repositories import VectorIndexEntryRepository
 from app.domain.retrieval.entities import (
     QueryTrace,
@@ -46,6 +47,16 @@ class InMemoryVectorIndexEntryRepository(VectorIndexEntryRepository):
         source_document_id: UUID,
     ) -> list[VectorIndexEntry]:
         return []
+
+    def list_current_chunk_version_ids_by_stable_section_keys(
+        self,
+        *,
+        stable_section_keys: tuple[str, ...],
+        source_system: SourceSystem,
+        provider: str | None = None,
+        model_name: str | None = None,
+    ) -> dict[str, tuple[UUID, ...]]:
+        return dict.fromkeys(stable_section_keys, ())
 
     def search_active_by_vector(
         self,

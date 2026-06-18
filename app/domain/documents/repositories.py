@@ -143,6 +143,17 @@ class VectorIndexEntryRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def list_current_chunk_version_ids_by_stable_section_keys(
+        self,
+        *,
+        stable_section_keys: tuple[str, ...],
+        source_system: SourceSystem,
+        provider: str | None = None,
+        model_name: str | None = None,
+    ) -> dict[str, tuple[UUID, ...]]:
+        raise NotImplementedError
+
+    @abstractmethod
     def search_active_by_vector(
         self,
         *,

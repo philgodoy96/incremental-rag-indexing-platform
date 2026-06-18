@@ -252,6 +252,32 @@ class InMemoryVectorIndexEntryRepository(VectorIndexEntryRepository):
             if entry.source_document_id == source_document_id and entry.is_active
         ]
 
+    def list_current_chunk_version_ids_by_stable_section_keys(
+        self,
+        *,
+        stable_section_keys: tuple[str, ...],
+        source_system: SourceSystem,
+        provider: str | None = None,
+        model_name: str | None = None,
+    ) -> dict[str, tuple[UUID, ...]]:
+        return {
+            stable_section_key: tuple(
+                chunk_version_id
+                for _chunk_index, chunk_version_id in sorted(
+                    (
+                        (entry.chunk_index, entry.chunk_version_id)
+                        for entry in self.entries.values()
+                        if entry.is_active
+                        and entry.stable_section_key == stable_section_key
+                        and (provider is None or entry.provider == provider)
+                        and (model_name is None or entry.model_name == model_name)
+                    ),
+                    key=lambda item: item[0],
+                )
+            )
+            for stable_section_key in stable_section_keys
+        }
+
     def search_active_by_vector(
         self,
         *,
