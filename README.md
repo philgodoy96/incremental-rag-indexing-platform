@@ -161,6 +161,7 @@ python scripts/seed_demo_evaluation_cases.py
 
 Detailed walkthroughs:
 
+- [Final Demo Walkthrough](docs/demo/final-demo-walkthrough.md)
 - [End-to-End Demo Guide](docs/demo/manual-flows/end-to-end-demo-guide.md)
 - [Demo API Examples](docs/demo/manual-flows/api-examples.md)
 - [Retrieval Evaluation Workflow](docs/demo/manual-flows/retrieval-evaluation-workflow.md)
