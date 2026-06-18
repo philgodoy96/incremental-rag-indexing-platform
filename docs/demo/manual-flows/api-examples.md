@@ -4,13 +4,30 @@
 
 This document provides API examples for manually demonstrating the Incremental RAG Indexing Platform.
 
-The examples assume the API is running locally and fake providers are enabled.
+The examples assume the API is running locally and fake providers are enabled by default.
 
 Base URL:
 
     http://localhost:8000
 
 If your local API uses a different port, adjust the examples.
+
+## Provider Configuration
+
+The retrieval provider and retrieval model are selected in request bodies using:
+
+- provider
+- model_name
+
+The LLM provider is selected by runtime configuration:
+
+    LLM_PROVIDER=fake
+
+or:
+
+    LLM_PROVIDER=openai
+
+The answer request body should not include `llm_provider`, `llm_model_name`, `retrieval_provider`, or `retrieval_model_name`.
 
 ## Health Check
 
@@ -85,20 +102,22 @@ Request:
     curl -X POST http://localhost:8000/api/v1/answers \
       -H "Content-Type: application/json" \
       -d '{
-        "query": "Who owns Project Atlas?",
+        "question": "Who owns Project Atlas?",
         "top_k": 5,
-        "retrieval_provider": "fake",
-        "retrieval_model_name": "fake-embedding-v1",
-        "llm_provider": "fake",
-        "llm_model_name": "fake-llm-v1"
+        "provider": "fake",
+        "model_name": "fake-embedding-v1"
       }'
 
 Expected behavior:
 
 - response includes an answer
-- response includes citations
+- response includes citations when retrieval returns context
 - answer is persisted
 - provider call is persisted
+
+If `LLM_PROVIDER=openai`, the answer generation call uses the configured OpenAI provider.
+
+If `LLM_PROVIDER=fake`, the answer generation call uses the fake provider.
 
 ## List Answers
 
@@ -120,7 +139,7 @@ Request:
 Expected behavior:
 
 - response includes answer content
-- response includes citations
+- response includes citations when available
 - response allows answer auditability
 
 ## List LLM Provider Calls
@@ -172,7 +191,7 @@ Request:
 Expected behavior:
 
 - response groups calls by provider and model
-- fake provider/model should appear after answer generation
+- fake or OpenAI provider/model should appear after answer generation
 
 ## Create Retrieval Evaluation Case
 
@@ -253,6 +272,6 @@ Use this sequence when presenting the project:
 
 ## Notes
 
-The examples use fake providers by default.
+The examples use fake retrieval providers by default.
 
-Real provider integration should be enabled only through explicit configuration and should never be required for automated tests.
+Real LLM provider integration should be enabled only through explicit runtime configuration and should never be required for automated tests.

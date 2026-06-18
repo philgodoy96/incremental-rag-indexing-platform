@@ -11,12 +11,10 @@ POST {{baseUrl}}/api/v1/answers
 Content-Type: application/json
 
 {
-  "query": "Who owns Project Atlas?",
+  "question": "Who owns Project Atlas?",
   "top_k": 5,
-  "retrieval_provider": "fake",
-  "retrieval_model_name": "fake-embedding-v1",
-  "llm_provider": "openai",
-  "llm_model_name": "gpt-5.4-mini"
+  "provider": "fake",
+  "model_name": "fake-embedding-v1"
 }
 
 

@@ -73,11 +73,28 @@ If the project exposes Swagger UI, open:
 
     /docs
 
+## Provider Configuration
+
+The answer API request selects retrieval provider/model through request fields:
+
+- provider
+- model_name
+
+The LLM provider is selected through runtime environment configuration:
+
+    LLM_PROVIDER=fake
+
+or:
+
+    LLM_PROVIDER=openai
+
+This means the request body should not include `llm_provider`, `llm_model_name`, `retrieval_provider`, or `retrieval_model_name`.
+
 ## Load or Index Demo Documents
 
 Use the existing ingestion/indexing flow in the project to load the demo documents.
 
-The important requirement is that the four demo documents become available as indexed chunks.
+The important requirement is that the four demo documents become available as indexed chunks and vector index entries.
 
 The documents to load are:
 
@@ -87,6 +104,8 @@ The documents to load are:
 - demo/documents/engineering-onboarding-guide.md
 
 After indexing, verify that the system has document versions, chunk versions, embeddings, and vector index entries.
+
+If vector index entries are empty, semantic retrieval will return no results.
 
 ## Demo Question Set
 
@@ -191,7 +210,7 @@ Example request shape:
 
 Expected behavior:
 
-- response includes retrieved chunks
+- response includes retrieval results
 - response includes or links to a query trace identifier
 - top results should come from Project Atlas Brief
 
@@ -219,21 +238,23 @@ Use the grounded answer endpoint:
 Example request shape:
 
     {
-      "query": "Who owns Project Atlas?",
+      "question": "Who owns Project Atlas?",
       "top_k": 5,
-      "retrieval_provider": "fake",
-      "retrieval_model_name": "fake-embedding-v1",
-      "llm_provider": "fake",
-      "llm_model_name": "fake-llm-v1"
+      "provider": "fake",
+      "model_name": "fake-embedding-v1"
     }
 
 Expected behavior:
 
 - answer is returned
-- answer includes citations
+- answer includes citations when retrieval returns context
 - answer is persisted
 - provider call is persisted
 - query trace is linked or inspectable
+
+If `LLM_PROVIDER=openai`, the LLM call uses the configured OpenAI provider.
+
+If `LLM_PROVIDER=fake`, the LLM call uses the fake provider.
 
 ## Inspect Persisted Answers
 
@@ -245,7 +266,7 @@ Use the answer read API:
 Expected behavior:
 
 - answer record exists
-- citations are persisted
+- citations are persisted when context was available
 - answer can be audited after generation
 
 ## Inspect LLM Provider Calls
@@ -316,6 +337,7 @@ The demo is successful when the reviewer can verify:
 
 - demo documents exist and are deterministic
 - indexed chunks are available
+- vector index entries are available
 - retrieval returns relevant chunks
 - query traces explain retrieval
 - grounded answers include citations
@@ -326,7 +348,7 @@ The demo is successful when the reviewer can verify:
 
 ## Troubleshooting
 
-### Retrieval returns irrelevant chunks
+### Retrieval returns no chunks
 
 Check:
 
@@ -335,6 +357,14 @@ Check:
 - vector index entries exist
 - provider/model values match the indexed embeddings
 - top_k is high enough
+
+### Answer returns insufficient context
+
+Check:
+
+- retrieval returned context
+- vector index entries are not empty
+- the demo documents were indexed before answer generation
 
 ### Answer has weak citations
 
