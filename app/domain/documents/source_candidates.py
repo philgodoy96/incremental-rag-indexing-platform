@@ -24,6 +24,7 @@ class SourceDocumentCandidate:
     raw_content: str
     content_checksum: str
     metadata_checksum: str
+    tags: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         ensure_not_blank(self.external_id, "external_id")
@@ -42,16 +43,20 @@ class SourceDocumentCandidate:
         source_uri: str,
         title: str,
         raw_content: str,
+        tags: tuple[str, ...] = (),
     ) -> "SourceDocumentCandidate":
         normalized_external_id = normalize_external_id(external_id)
         normalized_source_uri = normalize_source_uri(source_uri)
 
-        metadata = {
+        metadata: dict[str, object] = {
             "source_system": source_system.value,
             "external_id": normalized_external_id,
             "source_uri": normalized_source_uri,
             "title": title,
         }
+
+        if tags:
+            metadata["tags"] = list(tags)
 
         return cls(
             source_system=source_system,
@@ -61,6 +66,7 @@ class SourceDocumentCandidate:
             raw_content=raw_content,
             content_checksum=calculate_content_checksum(raw_content),
             metadata_checksum=calculate_metadata_checksum(metadata),
+            tags=tags,
         )
 
 
@@ -77,4 +83,10 @@ def normalize_source_uri(value: str) -> str:
 
     ensure_not_blank(value, "source_uri")
 
-    return PurePosixPath(value.replace("\\", "/")).as_posix()
+    normalized = value.replace("\\", "/")
+
+    if "://" in normalized:
+        scheme, _, remainder = normalized.partition("://")
+        return f"{scheme}://{remainder.lstrip('/')}"
+
+    return PurePosixPath(normalized).as_posix()

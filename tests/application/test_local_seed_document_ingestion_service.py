@@ -5,6 +5,9 @@ from app.application.services.local_seed_document_ingestion_service import (
     LocalSeedDocumentIngestionAction,
     LocalSeedDocumentIngestionService,
 )
+from app.application.services.source_document_discovery import (
+    SourceDocumentDiscoveryResult,
+)
 from app.domain.documents.entities import (
     ChunkEmbeddingLink,
     ChunkVersion,
@@ -28,6 +31,7 @@ from app.domain.documents.repositories import (
     SourceDocumentRepository,
     VectorIndexEntryRepository,
 )
+from app.domain.documents.source_candidates import SourceDocumentCandidate
 from app.domain.retrieval.entities import RetrievedChunk
 
 
@@ -511,3 +515,45 @@ def test_ingestion_creates_new_version_artifacts_when_content_changes(
     assert len(transaction.chunk_embedding_link_repository.links) == 2
     assert len(transaction.embedding_cost_record_repository.cost_records) == 2
     assert len(transaction.vector_index_entry_repository.entries) == 1
+
+
+class StubDiscoveryService:
+    def __init__(self, result: SourceDocumentDiscoveryResult) -> None:
+        self._result = result
+        self.discover_calls = 0
+
+    def discover(self) -> SourceDocumentDiscoveryResult:
+        self.discover_calls += 1
+        return self._result
+
+
+def test_local_seed_ingestion_service_accepts_custom_discovery_service(
+    tmp_path: Path,
+) -> None:
+    discovery_result = SourceDocumentDiscoveryResult(
+        source_system=SourceSystem.LOCAL_SEED_DOCUMENTS,
+        source_path=tmp_path.as_posix(),
+        documents=(
+            SourceDocumentCandidate.create(
+                source_system=SourceSystem.LOCAL_SEED_DOCUMENTS,
+                external_id="custom.md",
+                source_uri="seed_documents/custom.md",
+                title="Custom Document",
+                raw_content="# Custom Document\n\nBody.",
+            ),
+        ),
+    )
+    discovery_service = StubDiscoveryService(discovery_result)
+    transaction = InMemoryDocumentIngestionTransaction()
+    service = LocalSeedDocumentIngestionService(
+        source_path=tmp_path,
+        discovery_service=discovery_service,
+    )
+
+    result = service.ingest(transaction)
+
+    assert discovery_service.discover_calls == 1
+    assert result.documents_seen == 1
+    assert result.source_path == tmp_path.as_posix()
+    assert result.documents[0].external_id == "custom.md"
+    assert result.documents[0].action == LocalSeedDocumentIngestionAction.CREATED

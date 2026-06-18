@@ -1,7 +1,10 @@
 import pytest
 
 from app.domain.documents.enums import SourceSystem
-from app.domain.documents.source_candidates import SourceDocumentCandidate
+from app.domain.documents.source_candidates import (
+    SourceDocumentCandidate,
+    normalize_source_uri,
+)
 
 
 def test_source_document_candidate_normalizes_external_id_and_source_uri() -> None:
@@ -40,3 +43,28 @@ def test_source_document_candidate_calculates_checksums() -> None:
     assert candidate.content_checksum
     assert candidate.metadata_checksum
     assert candidate.content_checksum != candidate.metadata_checksum
+
+
+def test_normalize_source_uri_preserves_scheme_based_uris() -> None:
+    assert normalize_source_uri("demo://project-atlas-brief") == "demo://project-atlas-brief"
+
+
+def test_source_document_candidate_preserves_tags_in_metadata_checksum() -> None:
+    without_tags = SourceDocumentCandidate.create(
+        source_system=SourceSystem.DEMO_DOCUMENTS,
+        external_id="demo/project-atlas-brief",
+        source_uri="demo://project-atlas-brief",
+        title="Project Atlas Brief",
+        raw_content="# Project Atlas Brief\n\nContent.",
+    )
+    with_tags = SourceDocumentCandidate.create(
+        source_system=SourceSystem.DEMO_DOCUMENTS,
+        external_id="demo/project-atlas-brief",
+        source_uri="demo://project-atlas-brief",
+        title="Project Atlas Brief",
+        raw_content="# Project Atlas Brief\n\nContent.",
+        tags=("project-atlas", "platform"),
+    )
+
+    assert with_tags.tags == ("project-atlas", "platform")
+    assert with_tags.metadata_checksum != without_tags.metadata_checksum
