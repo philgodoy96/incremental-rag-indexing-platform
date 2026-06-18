@@ -216,6 +216,8 @@ Current status:
 - Demo document manifest added
 - Demo dataset preview script added
 - Demo seed data loader added
+- Demo presentation checklist added
+- Manual end-to-end demo guide added
 - Deterministic demo documents added
 - End-to-end demo scenario defined
 - Retrieval evaluation case and result APIs introduced
