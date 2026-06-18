@@ -10,24 +10,24 @@
 GET {{baseUrl}}/health
 
 
-### Semantic retrieval: Project Atlas overview
-POST {{baseUrl}}/api/v1/retrieval/search
-Content-Type: application/json
-
-{
-  "query": "What is Project Atlas?",
-  "top_k": 5,
-  "provider": "fake",
-  "model_name": "fake-embedding-v1"
-}
-
-
 ### Semantic retrieval: Project Atlas ownership
 POST {{baseUrl}}/api/v1/retrieval/search
 Content-Type: application/json
 
 {
   "query": "Who owns Project Atlas?",
+  "top_k": 5,
+  "provider": "fake",
+  "model_name": "fake-embedding-v1"
+}
+
+
+### Semantic retrieval: Project Atlas overview
+POST {{baseUrl}}/api/v1/retrieval/search
+Content-Type: application/json
+
+{
+  "query": "What is Project Atlas?",
   "top_k": 5,
   "provider": "fake",
   "model_name": "fake-embedding-v1"
@@ -83,10 +83,10 @@ POST {{baseUrl}}/api/v1/evaluation/cases
 Content-Type: application/json
 
 {
-  "name": "Project Atlas overview",
-  "query": "What is Project Atlas?",
+  "name": "Project Atlas ownership",
+  "query": "Who owns Project Atlas?",
   "expected_chunk_version_ids": ["{{chunkVersionId}}"],
-  "tags": ["project-atlas", "overview"]
+  "tags": ["project-atlas", "ownership"]
 }
 
 
