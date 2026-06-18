@@ -212,6 +212,16 @@ Current status:
 - Failed provider calls are exposed through the LLM Provider Call Read API
 - LLM usage can now be summarized by period, provider, and model
 - Retrieval evaluation run API introduced
+- Demo dataset and manual flow planning started
+- Demo document manifest added
+- Demo dataset preview script added
+- Demo seed data loader added
+- Demo presentation checklist added
+- REST Client demo flow added
+- Demo API examples added
+- Manual end-to-end demo guide added
+- Deterministic demo documents added
+- End-to-end demo scenario defined
 - Retrieval evaluation case and result APIs introduced
 - Retrieval evaluation runner introduced
 - Retrieval evaluation persistence introduced

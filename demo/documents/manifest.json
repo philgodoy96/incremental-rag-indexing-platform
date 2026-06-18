@@ -1,0 +1,34 @@
+{
+  "dataset_name": "acme_internal_knowledge_demo",
+  "dataset_version": "1.0.0",
+  "documents": [
+    {
+      "external_id": "demo/project-atlas-brief",
+      "title": "Project Atlas Brief",
+      "file_path": "demo/documents/project-atlas-brief.md",
+      "source_uri": "demo://project-atlas-brief",
+      "tags": ["project-atlas", "platform", "ai-infrastructure"]
+    },
+    {
+      "external_id": "demo/incident-response-playbook",
+      "title": "Incident Response Playbook",
+      "file_path": "demo/documents/incident-response-playbook.md",
+      "source_uri": "demo://incident-response-playbook",
+      "tags": ["incident-response", "operations", "reliability"]
+    },
+    {
+      "external_id": "demo/customer-support-escalation-policy",
+      "title": "Customer Support Escalation Policy",
+      "file_path": "demo/documents/customer-support-escalation-policy.md",
+      "source_uri": "demo://customer-support-escalation-policy",
+      "tags": ["support", "escalation", "customer-operations"]
+    },
+    {
+      "external_id": "demo/engineering-onboarding-guide",
+      "title": "Engineering Onboarding Guide",
+      "file_path": "demo/documents/engineering-onboarding-guide.md",
+      "source_uri": "demo://engineering-onboarding-guide",
+      "tags": ["engineering", "onboarding", "developer-experience"]
+    }
+  ]
+}

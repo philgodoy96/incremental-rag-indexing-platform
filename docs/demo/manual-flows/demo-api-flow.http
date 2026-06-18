@@ -1,0 +1,120 @@
+@baseUrl = http://localhost:8000
+@queryTraceId = replace-with-query-trace-id
+@answerId = replace-with-answer-id
+@providerCallId = replace-with-provider-call-id
+@evaluationCaseId = replace-with-evaluation-case-id
+@evaluationResultId = replace-with-evaluation-result-id
+@chunkVersionId = replace-with-indexed-chunk-version-id
+
+### Health check
+GET {{baseUrl}}/health
+
+
+### Semantic retrieval: Project Atlas overview
+POST {{baseUrl}}/api/v1/retrieval/search
+Content-Type: application/json
+
+{
+  "query": "What is Project Atlas?",
+  "top_k": 5,
+  "provider": "fake",
+  "model_name": "fake-embedding-v1"
+}
+
+
+### Semantic retrieval: Project Atlas ownership
+POST {{baseUrl}}/api/v1/retrieval/search
+Content-Type: application/json
+
+{
+  "query": "Who owns Project Atlas?",
+  "top_k": 5,
+  "provider": "fake",
+  "model_name": "fake-embedding-v1"
+}
+
+
+### List query traces
+GET {{baseUrl}}/api/v1/retrieval/traces
+
+
+### Read query trace
+GET {{baseUrl}}/api/v1/retrieval/traces/{{queryTraceId}}
+
+
+### Generate grounded answer
+POST {{baseUrl}}/api/v1/answers
+Content-Type: application/json
+
+{
+  "query": "Who owns Project Atlas?",
+  "top_k": 5,
+  "retrieval_provider": "fake",
+  "retrieval_model_name": "fake-embedding-v1",
+  "llm_provider": "fake",
+  "llm_model_name": "fake-llm-v1"
+}
+
+
+### List answers
+GET {{baseUrl}}/api/v1/answers
+
+
+### Read answer
+GET {{baseUrl}}/api/v1/answers/{{answerId}}
+
+
+### List LLM provider calls
+GET {{baseUrl}}/api/v1/llm-provider-calls
+
+
+### Read LLM provider call
+GET {{baseUrl}}/api/v1/llm-provider-calls/{{providerCallId}}
+
+
+### LLM usage summary
+GET {{baseUrl}}/api/v1/llm-usage/summary
+
+
+### LLM usage by model
+GET {{baseUrl}}/api/v1/llm-usage/by-model
+
+
+### Create retrieval evaluation case
+POST {{baseUrl}}/api/v1/evaluation/cases
+Content-Type: application/json
+
+{
+  "name": "Project Atlas overview",
+  "query": "What is Project Atlas?",
+  "expected_chunk_version_ids": ["{{chunkVersionId}}"],
+  "tags": ["project-atlas", "overview"]
+}
+
+
+### List retrieval evaluation cases
+GET {{baseUrl}}/api/v1/evaluation/cases
+
+
+### Read retrieval evaluation case
+GET {{baseUrl}}/api/v1/evaluation/cases/{{evaluationCaseId}}
+
+
+### Run retrieval evaluation
+POST {{baseUrl}}/api/v1/evaluation/runs
+Content-Type: application/json
+
+{
+  "evaluation_case_ids": ["{{evaluationCaseId}}"],
+  "top_k": 5,
+  "provider": "fake",
+  "model_name": "fake-embedding-v1"
+}
+
+
+### List retrieval evaluation results
+GET {{baseUrl}}/api/v1/evaluation/results
+
+
+### Read retrieval evaluation result
+GET {{baseUrl}}/api/v1/evaluation/results/{{evaluationResultId}}
