@@ -306,6 +306,59 @@ class SqlAlchemyVectorIndexEntryRepository(VectorIndexEntryRepository):
             for model in self._session.execute(statement).scalars().all()
         ]
 
+    def list_current_chunk_version_ids_by_stable_section_keys(
+        self,
+        *,
+        stable_section_keys: tuple[str, ...],
+        source_system: SourceSystem,
+        provider: str | None = None,
+        model_name: str | None = None,
+    ) -> dict[str, tuple[UUID, ...]]:
+        if not stable_section_keys:
+            return {}
+
+        statement = (
+            select(
+                VectorIndexEntryModel.stable_section_key,
+                VectorIndexEntryModel.chunk_version_id,
+            )
+            .join(
+                SourceDocumentModel,
+                VectorIndexEntryModel.source_document_id == SourceDocumentModel.id,
+            )
+            .where(
+                SourceDocumentModel.source_system == source_system.value,
+                VectorIndexEntryModel.is_active.is_(True),
+                VectorIndexEntryModel.stable_section_key.in_(stable_section_keys),
+            )
+            .order_by(
+                VectorIndexEntryModel.stable_section_key,
+                VectorIndexEntryModel.chunk_index,
+            )
+        )
+
+        if provider is not None:
+            statement = statement.where(VectorIndexEntryModel.provider == provider)
+
+        if model_name is not None:
+            statement = statement.where(
+                VectorIndexEntryModel.model_name == model_name,
+            )
+
+        chunk_ids_by_key: dict[str, list[UUID]] = {
+            key: [] for key in stable_section_keys
+        }
+
+        for stable_section_key, chunk_version_id in self._session.execute(
+            statement,
+        ).all():
+            chunk_ids_by_key[stable_section_key].append(chunk_version_id)
+
+        return {
+            stable_section_key: tuple(chunk_version_ids)
+            for stable_section_key, chunk_version_ids in chunk_ids_by_key.items()
+        }
+
     def search_active_by_vector(
         self,
         *,
