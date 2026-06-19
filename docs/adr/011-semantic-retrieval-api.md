@@ -63,7 +63,7 @@ This keeps retrieval focused on current content and avoids returning stale docum
 
 ### Generate Answers Immediately
 
-The system could combine retrieval and LLM answer generation in one slice.
+The system could combine retrieval and LLM answer generation in one API surface.
 
 Rejected because retrieval quality should be testable independently before answer generation.
 

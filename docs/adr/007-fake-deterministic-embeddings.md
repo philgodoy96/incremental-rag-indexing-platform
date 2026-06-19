@@ -40,7 +40,7 @@ The fake provider will have:
 
 This would be closer to production behavior.
 
-Rejected for this slice because it would make tests and local development depend on external services and real costs.
+Rejected for the initial implementation because it would make tests and local development depend on external services and real costs.
 
 ### Skip Embedding Records Until Search
 

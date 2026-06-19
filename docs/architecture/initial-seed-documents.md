@@ -56,7 +56,7 @@ Future evolution scenarios:
 - add limitations around index size
 - add an alternative for managed vector databases
 - update the rebuildability strategy
-- add notes about hybrid retrieval
+- add notes about future hybrid retrieval hardening
 
 ## Why These Documents Come First
 
@@ -66,4 +66,4 @@ These documents cover three important enterprise knowledge types:
 2. operational runbooks
 3. architecture decisions
 
-Together they allow the platform to test different retrieval behaviors once sectioning, chunking, embeddings, and citations are implemented.
+Together they allow the platform to test different retrieval behaviors across project status, operational runbook, and architecture-decision content.

@@ -122,16 +122,10 @@ These counters make indexing behavior observable.
 
 ## Current Limitations
 
-The current implementation stores vectors through pgvector but does not yet expose semantic retrieval endpoints.
+Semantic retrieval is available through `POST /api/v1/retrieval/search`.
 
-The next stage should introduce retrieval queries over active VectorIndexEntry records.
+Future hardening may add:
 
-## Future Work
-
-Future slices should add:
-
-- pgvector similarity search repository methods
-- semantic search API
-- query traces
-- retrieval evaluation
-- grounded answer generation with citations
+- production pgvector index tuning such as HNSW or IVFFlat benchmarks
+- keyword and hybrid retrieval strategies
+- additional ranking and reranking layers

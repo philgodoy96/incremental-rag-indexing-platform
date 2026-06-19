@@ -4,9 +4,9 @@
 
 Answer persistence stores the final grounded answer returned by the system.
 
-Before this slice, the platform persisted retrieval traces, but the final answer only existed in the API response.
+Before this milestone, the platform persisted retrieval traces, but the final answer only existed in the API response.
 
-This slice introduces durable answer records so generated answers can be audited after the request completes.
+This document describes durable answer records so generated answers can be audited after the request completes.
 
 ## Why This Matters
 
@@ -115,24 +115,24 @@ The answer_id can later be used to inspect the persisted answer.
 
 ## Current Limitations
 
-The platform persists answers but does not yet expose answer read endpoints.
+Answer read APIs are available at:
 
-The platform also does not yet track:
+- GET /api/v1/answers
+- GET /api/v1/answers/{answer_id}
 
-- LLM token usage
-- LLM cost
+LLM provider calls, token usage metadata, estimated cost, and latency are persisted through LLMProviderCallRecord and exposed through provider-call and usage-reporting APIs.
+
+The platform does not yet track:
+
 - prompt template version
-- provider latency
 - citation verification status
 - answer-level evaluation metrics
+- tenant/workspace scoping
 
 ## Future Work
 
-Future slices should add:
+Future hardening may add:
 
-- answer read API
-- answer listing API
-- LLM cost tracking
 - prompt version tracking
 - answer trace records
 - citation verification

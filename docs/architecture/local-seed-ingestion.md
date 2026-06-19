@@ -40,13 +40,9 @@ If the checksum is unchanged, the document is marked as unchanged for that run.
 
 ## Current Limitations
 
-This slice does not yet support:
+The current implementation does not yet support:
 
-- section extraction
-- chunking
-- embeddings
-- vector indexing
-- audit logs
+- dedicated audit-log persistence
 - deletion detection
 - concurrency protection for simultaneous ingestion runs
 
@@ -66,11 +62,8 @@ This keeps the application service independent from direct SQLAlchemy session us
 
 ## Follow-Up Work
 
-Future slices should add:
+Future hardening may add:
 
-- SectionVersion
-- Markdown section extraction
-- section-level checksums
-- ChunkVersion
-- deterministic chunking
-- embedding generation for changed chunks only
+- dedicated audit-log persistence
+- deletion detection
+- concurrency protection for simultaneous ingestion runs

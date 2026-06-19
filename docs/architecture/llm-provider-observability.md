@@ -4,9 +4,9 @@
 
 LLM provider observability records metadata about calls made to language model providers during answer generation.
 
-Before integrating a real provider such as OpenAI or AWS Bedrock, the platform needs a durable way to inspect provider usage, latency, token counts, cost, and failures.
+The platform persists provider usage, latency, token counts, estimated cost, and failures so teams can inspect LLM behavior without relying on external dashboards alone.
 
-This slice introduces LLMProviderCallRecord and enriches the LLM provider boundary with usage metadata.
+This document describes LLMProviderCallRecord and the LLM provider boundary usage metadata model.
 
 ## Why This Matters
 
@@ -133,27 +133,24 @@ This supports debugging across answer generation, provider usage, retrieval beha
 
 The current implementation does not yet:
 
-- expose LLM provider call read APIs
-- calculate real provider costs
-- persist failed provider calls from exception paths
 - track prompt template versions
 - track provider request/response IDs
 - support fallback models
-- support provider retries
+- support provider retries or automatic fallback
 - support per-tenant budgets
-- support cost dashboards
+- expose bundled cost or reliability dashboards
+
+OpenAI is supported as an optional LLM provider. Estimated cost for OpenAI calls depends on configured pricing and returned usage metadata. Fake provider calls use deterministic test metadata and zero estimated cost.
+
+Failed provider calls are persisted when answer generation fails after retrieval succeeds. Provider call read APIs and usage reporting APIs are available for inspection.
 
 ## Future Work
 
-Future slices should add:
+Future hardening may add:
 
-- provider call read API
-- failed provider call persistence
-- real provider adapters
-- token and cost calculation by provider/model
+- additional real provider adapters
 - prompt version metadata
 - fallback model strategy
-- retry and timeout handling
+- retry and timeout policy
 - budget alerts
-- provider latency metrics
-- dashboards for cost and reliability
+- deployment-time dashboards for cost and reliability

@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This document describes the first source-of-truth persistence foundation for the platform.
+This document describes the source-of-truth persistence foundation for logical documents and immutable document versions.
 
-The goal is to represent logical source documents and immutable document versions before implementing Markdown ingestion.
+The repository now also includes section versions, chunk versions, embeddings, vector index entries, retrieval, answers, and evaluation. This document focuses on the document-version foundation that those later capabilities build on.
 
 ## Core Concepts
 
@@ -34,9 +34,7 @@ When content changes, the system creates a new DocumentVersion instead of overwr
 
 An IngestionRun represents one execution of a source scanning or ingestion workflow.
 
-In this slice, it is only a foundation entity.
-
-Future slices will use it to track actual ingestion behavior.
+Ingestion runs track how source-of-truth records were created or updated.
 
 ## Source of Truth
 
@@ -59,13 +57,13 @@ Immutable versions allow the system to answer:
 
 ## Database Tables
 
-This slice introduces:
+The document foundation introduced:
 
     ingestion_runs
     source_documents
     document_versions
 
-No section, chunk, embedding, retrieval, or answer tables exist yet.
+Later migrations added section, chunk, embedding, retrieval, answer, provider-call, and evaluation tables.
 
 ## Current Version Pointer
 
@@ -101,12 +99,8 @@ This explicit mapping is intentional.
 
 The application should not treat SQLAlchemy models as domain entities.
 
-## Follow-Up Work
+## Related Documentation
 
-Next slices should introduce:
-
-- local Markdown source scanning
-- checksum calculation
-- ingestion application service
-- creation of SourceDocument and DocumentVersion from files
-- first seed documents
+- [Local Seed Ingestion](local-seed-ingestion.md)
+- [Section Versioning](section-versioning.md)
+- [Chunk Versioning](chunk-versioning.md)

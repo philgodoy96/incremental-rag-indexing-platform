@@ -89,21 +89,14 @@ This supports incremental rollout of chunking after sectioning already exists.
 
 ## Current Limitations
 
-This slice does not yet support:
+The current implementation does not yet support:
 
-- embeddings
-- embedding provider reuse
-- vector index entries
-- semantic search
 - prompt injection risk detection
-- citation rendering
+- citation rendering in API responses beyond answer citation records
 
 ## Follow-Up Work
 
-Future slices should introduce:
+Future hardening may add:
 
-- EmbeddingRecord
-- fake deterministic embeddings
-- embedding cost tracking
-- VectorIndexEntry
-- semantic search with pgvector
+- prompt injection risk detection
+- additional chunk metadata and citation rendering helpers

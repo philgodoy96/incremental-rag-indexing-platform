@@ -105,19 +105,17 @@ This allows future debugging workflows such as:
 
 ## Current Limitations
 
-The current implementation does not yet expose trace reading endpoints.
-
-It also does not yet persist failed traces across all failure modes.
-
-Future work should add:
+Query trace read APIs are available at:
 
 - GET /api/v1/retrieval/traces
 - GET /api/v1/retrieval/traces/{trace_id}
-- failed trace persistence
-- pagination for trace listing
+
+Future hardening may add:
+
+- failed trace persistence across all failure modes
+- pagination improvements such as cursor pagination
 - filtering by provider, model, status, and date
 - retention policies for old traces
-- query trace integration with grounded answer generation
 
 ## Operational Notes
 

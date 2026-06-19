@@ -108,11 +108,9 @@ Operational data explains what happened during system workflows.
 Examples:
 
 - IngestionRun
-- IngestionJob
 - QueryTrace
-- AuditLogEntry
-- EvaluationRun
-- EvaluationResult
+- RetrievalEvaluationCaseResult
+- planned AuditLogEntry (not implemented)
 
 Some operational data is important for auditability and should be retained.
 
@@ -150,8 +148,7 @@ Generated answers should remain linked to the evidence that supported them.
 - GeneratedAnswer
 - AnswerCitation
 - QueryTrace
-- EvaluationRun
-- AuditLogEntry
+- RetrievalEvaluationCaseResult
 
 ## Example Scenario
 

@@ -10,7 +10,7 @@ The goal is to keep the project understandable, testable, reviewable, and mainta
 
 Implementation should begin only after the relevant design questions are clear:
 
-- What business problem does this slice solve?
+- What business problem does this change solve?
 - What are the system responsibilities?
 - What entities are involved?
 - What invariants must hold?
@@ -66,7 +66,7 @@ Retrieved documents are evidence, not instructions.
 
 The answer generation layer must not allow retrieved content to override system behavior.
 
-Suspicious prompt injection patterns should be detected, flagged, logged, and tested.
+Future hardening should detect suspicious prompt injection patterns, flag them, and test the behavior. Automated detection is not part of the current application flow.
 
 ### 6. Avoid Framework-Centric Architecture
 
@@ -93,9 +93,9 @@ Examples:
     feat/grounded-answers
     feat/retrieval-evaluation
 
-Each branch should represent a coherent engineering slice.
+Each branch should represent a coherent, reviewable change.
 
-A slice may contain multiple commits when each commit has a clear purpose.
+A branch may contain multiple commits when each commit has a clear purpose.
 
 ## Commit Standards
 
@@ -120,7 +120,7 @@ Avoid vague commit messages such as:
 
 ## Pull Request Standards
 
-Even when working individually, each slice should be reviewable like a pull request.
+Even when working individually, each change should be reviewable like a pull request.
 
 A good PR description should include:
 
@@ -142,7 +142,7 @@ Testing should include:
 - idempotency checks
 - regression checks for retrieval behavior
 
-Documentation-only slices should still be reviewed for:
+Documentation-only changes should still be reviewed for:
 
 - consistency
 - accuracy
@@ -187,16 +187,15 @@ Required documentation areas:
 
     docs/architecture/
     docs/adr/
-    docs/experiments/
-    docs/reviews/
+    docs/demo/
+    docs/operations/
+    docs/providers/
 
 Architecture documents explain system design.
 
 ADRs explain major technical decisions.
 
-Experiment documents track retrieval and evaluation changes.
-
-Review documents capture engineering analysis after milestones.
+Demo and provider documents cover manual workflows and optional real-provider validation.
 
 ## Seed Document Standards
 
@@ -212,7 +211,7 @@ They should help test capabilities such as:
 - retrieval
 - citations
 - evaluation
-- prompt injection detection
+- future prompt injection detection hardening
 
 Seed documents should be introduced only when the system has the capability to process them.
 

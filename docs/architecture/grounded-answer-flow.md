@@ -4,7 +4,7 @@
 
 The Grounded Answer API turns semantic retrieval results into an answer with citations.
 
-This is the first slice where the platform behaves like a RAG system from an API consumer perspective.
+This is the API path where the platform behaves like a RAG system from an API consumer perspective.
 
 The flow is:
 
@@ -121,12 +121,15 @@ This makes the answer auditable.
 
 ## Current Limitations
 
-The current implementation does not yet:
+The current implementation:
 
-- persist answer records
-- persist answer-level traces
+- persists answer records
+- links answers to query traces and provider call records
+- uses fake LLM provider by default and optional OpenAI LLM provider
+
+It does not yet:
+
 - verify whether every sentence is supported by citations
-- use a production LLM provider
 - stream responses
 - support multi-turn conversations
 - apply tenant/workspace filters
@@ -135,14 +138,10 @@ The current implementation does not yet:
 
 ## Future Work
 
-Future slices should add:
+Future hardening may add:
 
-- answer persistence
-- answer trace records
 - citation verification
-- real LLM provider adapters
-- provider configuration
+- additional LLM provider adapters
 - refusal policy improvements
 - evaluation for groundedness
-- cost tracking for LLM calls
 - tenant/workspace scoping

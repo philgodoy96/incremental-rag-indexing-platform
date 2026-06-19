@@ -2,22 +2,22 @@
 
 ## Purpose
 
-This document explains the initial application scaffold.
+This document describes the application module layout and boundaries for the Incremental RAG Indexing Platform.
 
-The scaffold creates the executable foundation for the Incremental RAG Indexing Platform without implementing ingestion, indexing, retrieval, or persistence logic yet.
+The scaffold established the executable foundation. The repository now also includes ingestion, indexing, semantic retrieval, grounded answers, provider observability, usage reporting, and retrieval evaluation. See [Project Status](../project-status.md) for the current capability list.
 
 ## Current Responsibilities
 
-The scaffold currently provides:
+The application currently provides:
 
 - FastAPI application factory
-- health check endpoint
+- health and readiness endpoints
 - centralized settings
 - Python project configuration
-- Dockerfile
-- Docker Compose environment
+- Dockerfile and Docker Compose environment
 - PostgreSQL with pgvector
-- initial automated test
+- automated tests
+- ingestion, indexing, retrieval, answering, evaluation, and observability APIs
 
 ## Directory Structure
 
@@ -25,7 +25,6 @@ The scaffold currently provides:
       api/
         routes/
       application/
-      audit/
       config/
       domain/
       evaluation/
@@ -49,7 +48,7 @@ They should validate input, call application services, and return responses.
 
 Contains application services and use cases.
 
-Application services coordinate workflows such as ingestion, indexing, retrieval, and evaluation.
+Application services coordinate workflows such as ingestion, indexing, retrieval, answering, and evaluation.
 
 They should depend on domain entities and repository interfaces.
 
@@ -69,12 +68,13 @@ This includes database sessions, SQLAlchemy models, repository implementations, 
 
 Contains provider adapters.
 
-Examples:
+Implemented examples:
 
 - FakeEmbeddingProvider
-- OpenAIEmbeddingProvider
 - FakeLLMProvider
-- BedrockLLMProvider
+- OpenAILLMProvider
+
+Future hardening may add additional embedding and LLM providers such as Bedrock adapters behind the same boundaries.
 
 Provider implementations should not leak into domain logic.
 
@@ -82,14 +82,14 @@ Provider implementations should not leak into domain logic.
 
 Contains retrieval-specific logic.
 
-Examples:
+Current examples:
 
-- keyword search
 - semantic search
-- hybrid search
 - scoring
 - filtering
 - query tracing support
+
+Keyword and hybrid retrieval are not implemented in the current application surface.
 
 ### app/evaluation
 
@@ -97,22 +97,11 @@ Contains retrieval evaluation logic.
 
 Examples:
 
-- EvaluationCase
-- EvaluationRun
-- hit@k
-- MRR
-
-### app/audit
-
-Contains audit logging concepts and services.
-
-Examples:
-
-- ingestion events
-- indexing events
-- retrieval events
-- answer generation events
-- risk flag events
+- RetrievalEvaluationCase
+- RetrievalEvaluationCaseResult
+- hit_rate_at_k
+- recall_at_k
+- reciprocal_rank
 
 ### app/config
 
@@ -120,31 +109,28 @@ Contains application settings and configuration loading.
 
 ## Current API Boundary
 
-The initial API boundary is:
+The API exposes endpoints under `/api/v1`, including:
 
-    GET /api/v1/health
+- `GET /health`
+- `GET /readiness`
+- ingestion, retrieval, answer, provider-call, usage-reporting, and evaluation routes
 
-This endpoint confirms that the application process is running.
-
-It does not check database readiness yet.
-
-A database readiness endpoint may be added after persistence is introduced.
+See [Project Status](../project-status.md) and [Demo API Examples](../demo/manual-flows/api-examples.md) for the current route list.
 
 ## Invariants
 
-1. The application must boot without requiring a database connection.
-2. The health endpoint must not perform persistence operations yet.
-3. Environment-specific configuration must come from environment variables.
-4. Secrets must not be committed to the repository.
-5. The scaffold must preserve modular monolith boundaries.
+1. Environment-specific configuration must come from environment variables.
+2. Secrets must not be committed to the repository.
+3. The application preserves modular monolith boundaries.
+4. Fake providers remain the default for local development and CI.
+5. Real external provider usage depends on explicit configuration and local credentials.
 
-## Follow-Up Work
+## Recommended Next Work
 
-Next implementation slices should add:
+Future hardening may add:
 
-- database session management
-- SQLAlchemy base model setup
-- Alembic initialization
-- domain entities for source documents
-- local Markdown ingestion
-- document versioning
+- additional embedding and LLM providers
+- keyword and hybrid retrieval
+- dedicated audit-log persistence
+- background workers for long-running ingestion
+- deployment automation and operational dashboards

@@ -36,7 +36,7 @@ They care about:
 - indexing correctness
 - failure recovery
 - cost control
-- audit logs
+- traceability through persisted query traces, answers, and provider calls
 - rebuildability
 
 ### Applied AI Engineers
@@ -49,7 +49,7 @@ They care about:
 - retrieval strategies
 - evaluation metrics
 - query traces
-- prompt injection risks
+- future prompt-injection hardening
 
 ### Internal Users
 
@@ -64,7 +64,7 @@ They care about:
 
 ## High-Level Responsibilities
 
-The system is responsible for:
+The current repository implements:
 
 1. Ingesting local Markdown documents.
 2. Detecting document changes.
@@ -72,31 +72,32 @@ The system is responsible for:
 4. Extracting section versions from document versions.
 5. Creating deterministic chunk versions from section versions.
 6. Generating embeddings for new or changed chunks.
-7. Avoiding duplicate embedding generation.
+7. Avoiding duplicate embedding generation where reuse applies.
 8. Maintaining a rebuildable vector index.
-9. Supporting keyword, semantic, and hybrid retrieval.
+9. Semantic retrieval over the active vector index.
 10. Generating grounded answers with citations.
 11. Capturing query traces.
 12. Running retrieval evaluation.
-13. Tracking estimated embedding cost.
-14. Persisting audit logs.
-15. Detecting suspicious prompt injection patterns in retrieved evidence.
+13. Tracking estimated embedding cost through persisted cost records.
+14. Persisting LLM provider calls, answers, citations, and evaluation results for auditability.
 
-## Non-Responsibilities in V1
+Recommended future hardening includes keyword and hybrid retrieval, dedicated audit-log persistence, and automated prompt-injection risk detection.
 
-The system will not initially support:
+## Out of Scope for the Current Repository
+
+The following are not part of the current application surface:
 
 - multi-tenancy
 - authentication
 - authorization
-- external document sources
+- external document sources beyond local Markdown seed/demo flows
 - background workers
-- RabbitMQ
-- LangChain as the core architecture
-- LlamaIndex as the core architecture
+- RabbitMQ, Redis, or Kafka-backed job queues
+- LangChain or LlamaIndex as the core architecture
 - fine-tuning
-- UI
+- UI or frontend
 - real-time collaboration
+- bundled Prometheus, Grafana, OpenTelemetry, Sentry, or Datadog dashboards
 
 These may be added later.
 
@@ -118,14 +119,16 @@ This provides:
 
 Exposes HTTP endpoints through FastAPI.
 
-Examples:
+Current examples:
 
 - ingestion runs
 - indexing dry runs
 - retrieval search
-- answer generation
+- query trace read APIs
+- answer generation and answer read APIs
+- provider call read APIs
+- LLM usage reporting
 - evaluation runs
-- audit log listing
 
 ### Application Layer
 
@@ -162,21 +165,19 @@ Implements persistence, SQLAlchemy models, database sessions, provider clients, 
 
 Defines adapters for embedding providers and LLM providers.
 
-The first providers will be fake and deterministic.
+The default providers are fake and deterministic for local development and CI.
 
-Real providers come later.
+An optional OpenAI LLM adapter exists behind the same provider boundary. Embedding generation currently uses the fake embedding provider.
 
 ### Retrieval Layer
 
-Implements keyword search, semantic search, hybrid search, scoring, filtering, and query tracing.
+Implements semantic search, scoring, filtering, and query tracing.
+
+Keyword and hybrid retrieval are planned future hardening, not current functionality.
 
 ### Evaluation Layer
 
 Runs evaluation cases against retrieval strategies and computes metrics.
-
-### Audit Layer
-
-Persists important domain and operational events.
 
 ## System Flow
 
@@ -206,34 +207,35 @@ Persists important domain and operational events.
             v
     GeneratedAnswer + AnswerCitation
 
-## Reliability Goals
+## Reliability Design Targets
 
-The system should support:
+The system is designed toward:
 
-- safe retries
 - idempotent indexing
-- no duplicate embeddings
-- provider failure handling
-- partial failure recovery
-- vector index rebuilds
-- auditability of important operations
+- no duplicate embeddings where reuse applies
+- provider failure capture and auditability
+- vector index rebuilds from durable records
+- auditability of important operations through persisted traces, answers, and provider calls
 
-## Observability Goals
+Automatic retry/backoff, circuit breakers, and provider fallback are not implemented in the current codebase.
 
-The system should expose two different types of observability.
+## Observability
 
-### Product and Retrieval Observability
+### Product and Retrieval Observability (Implemented)
 
 Captured through domain records such as:
 
 - QueryTrace
-- EvaluationRun
-- AuditLogEntry
+- EvaluationRun summaries and persisted evaluation results
 - EmbeddingCostRecord
+- LLMProviderCallRecord
+- AnswerRecord and AnswerCitationRecord
 
-### Technical Execution Observability
+Usage summary and by-model reporting APIs aggregate provider call metadata.
 
-Future versions may use:
+### Technical Execution Observability (Future Hardening)
+
+Future deployment hardening may use:
 
 - OpenTelemetry
 - Prometheus
@@ -242,7 +244,7 @@ Future versions may use:
 
 QueryTrace is not a replacement for OpenTelemetry.
 
-OpenTelemetry explains execution.
+OpenTelemetry would explain execution.
 
 QueryTrace explains retrieval decisions.
 
@@ -252,7 +254,7 @@ The system should treat retrieved content as untrusted evidence.
 
 Retrieved chunks must not be treated as instructions.
 
-The system should detect suspicious prompt injection patterns and persist risk flags.
+Future hardening may detect suspicious prompt injection patterns and persist risk flags. Chunk versions can store risk-flag metadata, but automated detection is not part of the current application flow.
 
 ## Key Design Tension
 
@@ -260,4 +262,4 @@ The main engineering trade-off is between simplicity and traceability.
 
 A simple RAG system could store only current document text and current embeddings.
 
-This project intentionally adds versioning, auditability, and evaluation because production RAG systems require trustworthy behavior over time.
+This project intentionally adds versioning, auditability, and evaluation because production-minded RAG systems require trustworthy behavior over time.

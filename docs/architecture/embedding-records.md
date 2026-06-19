@@ -98,26 +98,20 @@ This prevents duplicate provider calls and duplicate cost records for unchanged 
 
 ## Current Limitations
 
-This slice does not yet support:
+The current implementation does not yet support:
 
-- pgvector storage
-- vector index entries
-- semantic search
 - embedding provider fallback
 - async embedding jobs
 - retry/backoff handling
 - provider rate limiting
-- real token counting
-- real provider pricing
+- real token counting for fake embeddings
+- additional real embedding provider adapters
 
 ## Follow-Up Work
 
-Future slices should introduce:
+Future hardening may add:
 
-- VectorIndexEntry
-- pgvector column storage
-- semantic search endpoint
-- retrieval traces
-- real embedding provider adapters
-- provider-specific cost estimation
+- additional embedding provider adapters
+- provider-specific cost estimation improvements
 - async embedding jobs
+- retry/backoff and rate-limit policy

@@ -116,16 +116,12 @@ The current implementation still stores chunk_version_id on EmbeddingRecord for 
 
 A more normalized future model could remove chunk_version_id from EmbeddingRecord and use ChunkEmbeddingLink as the only chunk association.
 
-This was intentionally deferred to avoid over-expanding this slice.
+This was intentionally deferred to avoid over-expanding the initial reuse model.
 
 ## Future Work
 
-Future slices should introduce:
+Future hardening may add:
 
-- VectorIndexEntry
-- current vector index projection
-- pgvector-backed retrieval
-- active/inactive vector entries
-- semantic retrieval endpoint
-- retrieval traces
-- grounded citations
+- further normalization of chunk-to-embedding associations
+- additional retrieval ranking layers
+- keyword and hybrid retrieval strategies

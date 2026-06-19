@@ -2,39 +2,31 @@
 
 ## Purpose
 
-This document describes the planned local seed document source.
+This document describes the local seed document source used by the platform.
 
-The first source system is:
+The source system is:
 
     local_seed_documents
 
-The source directory will be:
+The source directory is:
 
     seed_documents/
 
 Seed documents are not placeholder content.
 
-They are realistic documents designed to test ingestion, versioning, chunking, retrieval, citations, evaluation, and prompt injection detection.
+They are realistic documents designed to test ingestion, versioning, chunking, retrieval, citations, and evaluation.
 
-## Planned Initial Documents
+## Initial Documents
 
-The first documents will be introduced only when ingestion logic exists.
-
-Planned files include:
+The seed source includes documents such as:
 
     project-atlas-status.md
     redis-queue-backlog-runbook.md
     adr-001-pgvector-retrieval-architecture.md
 
-## Why Documents Are Introduced Gradually
+The fictional Redis runbook content exercises operational-style retrieval. It does not imply that Redis-backed background workers are implemented in this repository.
 
-Documents should be added when the system can process them meaningfully.
-
-Adding all documents before ingestion exists would create static sample content without engineering value.
-
-The goal is to connect each document to a system behavior.
-
-## Planned Document Purposes
+## Document Purposes
 
 ### project-atlas-status.md
 
@@ -64,9 +56,9 @@ Tests:
 - trade-off questions
 - answer grounding
 
-## Planned Evolution Scenarios
+## Evolution Scenarios
 
-Later slices will intentionally modify seed documents to test incremental behavior.
+Future hardening may intentionally modify seed documents to test incremental behavior.
 
 Examples:
 
@@ -75,11 +67,11 @@ Examples:
 - add a new risk section
 - change a runbook threshold
 - add an architectural trade-off
-- introduce a malicious prompt injection pattern
+- introduce malicious prompt-injection test content once automated detection exists
 
 ## Expected Metadata
 
-Each local document should eventually produce metadata such as:
+Each local document produces metadata such as:
 
 - source_system
 - external_id
@@ -88,6 +80,10 @@ Each local document should eventually produce metadata such as:
 - content_checksum
 - metadata_checksum
 
-## Follow-Up Work
+## Related Documentation
 
-The next slice should implement a local Markdown scanner capable of discovering files and producing source document candidates without persisting them yet.
+Local Markdown discovery and ingestion behavior are documented in:
+
+- [Local Markdown Discovery](local-markdown-discovery.md)
+- [Local Seed Ingestion](local-seed-ingestion.md)
+- [Initial Seed Documents](initial-seed-documents.md)

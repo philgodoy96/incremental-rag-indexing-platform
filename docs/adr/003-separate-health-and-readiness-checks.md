@@ -25,7 +25,7 @@ Health checks whether the API process is alive.
 
 Readiness checks whether required dependencies are available.
 
-In this slice, readiness checks:
+In the initial implementation, readiness checks:
 
 - Postgres connectivity
 - pgvector extension availability
