@@ -100,7 +100,7 @@ Rejected because that encourages hallucination.
 
 A real LLM provider could be added now.
 
-Deferred to keep this slice deterministic, cheap, and focused on architecture.
+Deferred to keep the initial implementation deterministic, cheap, and focused on architecture.
 
 ## Follow-Up
 

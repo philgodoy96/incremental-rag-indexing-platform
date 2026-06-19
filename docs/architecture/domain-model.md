@@ -4,7 +4,7 @@
 
 This document describes the core domain entities of the Incremental RAG Indexing Platform.
 
-The domain model is intentionally defined before implementation to keep business concepts separate from database concerns.
+Some sections describe implemented entities. Others describe planned concepts that are not yet persisted or exposed through APIs. See [Project Status](../project-status.md) for the current implemented capability list.
 
 ## Entity Groups
 
@@ -237,6 +237,8 @@ It is not a distributed trace.
 
 ### AuditLogEntry
 
+Planned concept for dedicated audit-log persistence. Not implemented in the current repository.
+
 Represents an important system event.
 
 Important fields:
@@ -248,7 +250,7 @@ Important fields:
 - metadata
 - created_at
 
-Examples:
+Examples of future event types:
 
 - ingestion_started
 - document_version_created
@@ -343,26 +345,27 @@ Important fields:
 
 ### GeneratedAnswer
 
-Represents an answer generated from retrieved evidence.
+Conceptual name for a persisted grounded answer. The implemented entity is `AnswerRecord`.
 
 Important fields:
 
 - id
-- query
+- question
 - answer_text
-- answer_status
+- status
 - query_trace_id
 - created_at
 
-Answer statuses may include:
+Implemented statuses:
 
 - answered
-- no_evidence
-- blocked_due_to_risk
+- insufficient_context
+
+`blocked_due_to_risk` is a planned future status and is not part of the current application flow.
 
 ### AnswerCitation
 
-Represents a citation from an answer to a ChunkVersion.
+Conceptual name for a citation from an answer to a ChunkVersion. The implemented entity is `AnswerCitationRecord`.
 
 Important fields:
 
@@ -374,7 +377,7 @@ Important fields:
 
 ### AnswerFeedback
 
-Represents user feedback.
+Planned concept for user feedback. Not implemented in the current repository.
 
 Important fields:
 
@@ -398,5 +401,5 @@ Feedback is operational evidence for future improvement.
 6. Embeddings are not regenerated when the same identity already exists.
 7. VectorIndexEntry is rebuildable.
 8. QueryTrace explains retrieval decisions.
-9. AuditLogEntry records important system events.
+9. Dedicated AuditLogEntry persistence is planned but not implemented in the current repository.
 10. Retrieved documents are untrusted evidence, not instructions.

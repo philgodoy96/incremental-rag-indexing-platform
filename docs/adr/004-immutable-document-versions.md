@@ -66,7 +66,7 @@ Rejected for V1 because local development and query traceability are simpler whe
 
 ## Follow-Up
 
-Future slices will add:
+Future hardening will add:
 
 - SectionVersion
 - ChunkVersion

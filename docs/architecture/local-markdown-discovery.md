@@ -103,10 +103,6 @@ This makes it possible to:
 
 ## Follow-Up Work
 
-The next slice should introduce the first real seed documents and implement a persistence-oriented ingestion service that creates:
+Local seed ingestion now creates IngestionRun, SourceDocument, and DocumentVersion records through the supported ingestion APIs.
 
-- IngestionRun
-- SourceDocument
-- DocumentVersion
-
-The system should only create new DocumentVersions when content checksums change.
+Future hardening may add richer source systems and additional metadata handling beyond the current local Markdown seed flow.

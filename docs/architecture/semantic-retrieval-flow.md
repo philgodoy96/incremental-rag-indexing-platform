@@ -4,7 +4,7 @@
 
 Semantic retrieval allows users to search indexed documents using natural language.
 
-This slice does not generate final LLM answers. It only retrieves the most semantically relevant chunks from the active vector index.
+This flow retrieves the most semantically relevant chunks from the active vector index. Grounded answer generation is handled by separate answer APIs.
 
 ## Flow
 
@@ -106,24 +106,21 @@ The retrieval request enforces:
 
 ## Current Limitations
 
-The current API returns retrieved chunks only.
+The retrieval API returns retrieved chunks and persists query traces.
 
-It does not yet:
+It does not:
 
-- generate a final answer
-- cite sources in natural language
-- persist query traces
-- evaluate retrieval quality
+- generate a final answer in the same request
 - apply tenant/workspace filters
 - use a production embedding provider by default
 
+Grounded answers, citations, provider observability, and retrieval evaluation are available through separate APIs and workflows.
+
 ## Future Work
 
-Future slices should introduce:
+Future hardening may add:
 
-- query tracing
-- grounded answer generation
-- citation formatting
-- retrieval evaluation datasets
-- provider configuration
-- production pgvector indexes such as HNSW or IVFFlat
+- production pgvector index tuning such as HNSW or IVFFlat benchmarks
+- keyword and hybrid retrieval
+- tenant/workspace filters
+- additional embedding provider adapters

@@ -258,9 +258,8 @@ Both are necessary:
 
 The current implementation does not yet support:
 
-- persisted evaluation run entity
-- evaluation run IDs
-- named datasets
+- persisted evaluation run entity with durable run IDs separate from case results
+- named evaluation datasets
 - scheduled evaluation jobs
 - baseline comparison
 - regression thresholds
@@ -271,18 +270,19 @@ The current implementation does not yet support:
 - historical charts
 - workspace/tenant scoping
 
+Evaluation cases, per-case results, run summaries, and evaluation APIs are implemented.
+
 ## Future Work
 
-Future improvements should include:
+Future hardening may include:
 
-- RetrievalEvaluationRun entity
+- durable RetrievalEvaluationRun entity
 - dataset management
 - baseline comparison
 - scheduled evaluation jobs
 - regression detection
-- precision@k
-- nDCG
+- precision@k and nDCG
 - per-tag metrics
 - CI checks for retrieval quality
-- dashboard endpoints
+- deployment-time dashboard endpoints
 - evaluation reports over time

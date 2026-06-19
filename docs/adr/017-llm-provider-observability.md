@@ -44,9 +44,8 @@ LLMProviderCallRecord will link to:
 
 - Adds additional persistence writes during answer generation.
 - Adds more domain and infrastructure complexity.
-- Current implementation only persists successful provider calls.
-- Cost calculation is still fake and must be implemented per real provider.
-- Provider read APIs are still needed.
+- At ADR time, only successful provider calls were persisted; failed call persistence and provider read APIs were added later.
+- Cost calculation depends on provider behavior and configured pricing estimates.
 
 ## Alternatives Considered
 
@@ -72,14 +71,18 @@ A separate LLMProviderCallRecord is more extensible.
 
 ## Follow-Up
 
-Future work should add:
+Implemented since this ADR:
 
 - provider call read APIs
 - failed call persistence
-- real provider cost calculation
+- optional OpenAI LLM provider adapter with estimated cost reporting
+
+Future work may add:
+
+- additional provider adapters
 - prompt version tracking
 - provider request IDs
 - fallback model tracking
 - retry metadata
 - tenant/workspace cost attribution
-- cost dashboards
+- deployment-time cost dashboards

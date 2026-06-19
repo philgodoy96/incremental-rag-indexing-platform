@@ -6,7 +6,7 @@ The Answer Read API exposes persisted grounded answers for inspection.
 
 Before this API, answers could be generated and persisted, but there was no way to retrieve them through the application API.
 
-This slice closes the basic auditability loop:
+This milestone closes the basic auditability loop:
 
     POST /api/v1/answers
     -> returns answer_id

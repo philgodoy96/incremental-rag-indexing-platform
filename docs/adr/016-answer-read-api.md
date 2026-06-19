@@ -58,7 +58,7 @@ Rejected because retrieval auditability and answer auditability are different co
 
 Cursor pagination is better for high-volume production datasets.
 
-Deferred because offset pagination is sufficient for the first read API and keeps the slice small.
+Deferred because offset pagination was sufficient for the first read API and kept the initial scope small.
 
 ## Follow-Up
 

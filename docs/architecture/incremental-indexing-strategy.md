@@ -79,7 +79,7 @@ Metadata may include:
 - last modified time if available
 - document type
 
-Metadata changes may require audit logs even when content is unchanged.
+Metadata changes may require dedicated audit-log persistence in future hardening even when content is unchanged.
 
 ### 4. Section-Level Detection
 
@@ -208,7 +208,7 @@ If ingestion crashes mid-run, the next run should detect already completed work 
 
 ## Audit Events
 
-The system should emit audit events for:
+Future hardening may emit dedicated audit events for:
 
 - ingestion started
 - ingestion completed
@@ -222,6 +222,8 @@ The system should emit audit events for:
 - indexing failed
 - prompt injection risk detected
 
+Today, important workflow state is persisted through ingestion runs, version records, query traces, answers, provider calls, and evaluation results rather than a separate audit-log service.
+
 ## Trade-Offs
 
 This strategy is more complex than full re-indexing.
@@ -233,4 +235,4 @@ However, it improves:
 - auditability
 - reliability
 - retrieval evaluation
-- production readiness
+- operational inspection before wider deployment

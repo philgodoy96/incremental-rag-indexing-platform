@@ -81,21 +81,17 @@ This supports forward migration of existing ingested documents after sectioning 
 
 ## Current Limitations
 
-This slice does not yet support:
+The current implementation does not yet support:
 
-- ChunkVersion
-- chunk overlap
-- embeddings
-- semantic search
-- citation generation
+- chunk overlap configuration
+- citation generation at section level
 - section rename detection beyond heading-path keys
+- automated prompt injection risk detection
 
 ## Follow-Up Work
 
-Next slices should introduce:
+Future hardening may add:
 
-- deterministic chunking
-- ChunkVersion
-- chunk hashes
-- embedding input hashes
-- changed-section-only chunk generation
+- chunk overlap configuration
+- richer section rename detection
+- prompt injection risk detection

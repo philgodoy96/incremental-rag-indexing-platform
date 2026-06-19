@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This document describes the initial database foundation for the Incremental RAG Indexing Platform.
+This document describes the database foundation for the Incremental RAG Indexing Platform.
 
-The goal of this slice is to prepare the application for persistence without introducing domain tables yet.
+The foundation established SQLAlchemy, Alembic, pgvector enablement, and separate health/readiness endpoints. Domain tables for ingestion, indexing, retrieval, answers, provider calls, and evaluation now exist through later migrations.
 
 ## Responsibilities
 
@@ -12,24 +12,10 @@ The database foundation provides:
 
 - SQLAlchemy engine configuration
 - SQLAlchemy session factory
-- declarative base for future models
+- declarative base for models
 - Alembic migration environment
 - initial migration for pgvector
 - database readiness endpoint
-
-## Non-Responsibilities
-
-This slice does not introduce:
-
-- source document tables
-- document version tables
-- section version tables
-- chunk version tables
-- embedding tables
-- repository implementations
-- domain persistence logic
-
-Those belong to later slices.
 
 ## Health vs Readiness
 
@@ -70,27 +56,16 @@ The first migration enables the pgvector extension:
 
     CREATE EXTENSION IF NOT EXISTS vector
 
-Future migrations will introduce tables for:
+Later migrations introduced tables for source documents, versions, embeddings, vector index entries, query traces, answers, provider calls, and evaluation results.
 
-- source documents
-- document versions
-- section versions
-- chunk versions
-- embeddings
-- vector index entries
-- ingestion runs
-- query traces
-- audit logs
-- evaluation runs
+Dedicated audit-log tables are not part of the current repository.
 
 ## Invariants
 
-1. The application must be able to boot without opening a database connection.
-2. Health must not depend on Postgres.
-3. Readiness must fail if Postgres is unavailable.
-4. Readiness must fail if pgvector is not installed.
-5. Schema changes must go through Alembic migrations.
-6. Domain tables should not be added before the domain slice.
+1. Health must not depend on Postgres.
+2. Readiness must fail if Postgres is unavailable.
+3. Readiness must fail if pgvector is not installed.
+4. Schema changes must go through Alembic migrations.
 
 ## Manual Verification
 
@@ -104,7 +79,7 @@ Run migrations:
 
 Start the API:
 
-    uvicorn app.main:app --reload
+    uvicorn app.main:create_app --factory --reload
 
 Check health:
 

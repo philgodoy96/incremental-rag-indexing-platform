@@ -4,7 +4,7 @@
 
 Failed LLM Provider Call Persistence records LLM provider failures as durable provider call records.
 
-Before this slice, the platform persisted successful LLM provider calls during grounded answer generation.
+Before this milestone, the platform persisted successful LLM provider calls during grounded answer generation.
 
 This meant successful calls could be audited, but failed provider attempts were invisible unless they appeared in logs.
 
@@ -12,7 +12,7 @@ In production systems, this is not enough.
 
 LLM providers are external dependencies. They can fail because of timeouts, rate limits, invalid responses, authentication issues, provider outages, networking failures, or unexpected SDK errors.
 
-This slice makes those failures inspectable through the same LLM Provider Call Read API introduced earlier.
+This makes those failures inspectable through the LLM Provider Call Read API.
 
 ## What Changed
 
@@ -147,4 +147,4 @@ Future improvements should include:
 - timeout classification
 - failed answer response modeling
 - correlation with request_id and trace_id
-- dashboard views for provider reliability
+- dashboard views for provider reliability at deployment time
