@@ -15,12 +15,19 @@ from app.domain.answering.entities import (
     GroundedAnswerRequest,
 )
 from app.domain.answering.enums import GroundedAnswerStatus
+from app.domain.answering.provenance import ProvenanceValidationError
 from app.main import create_app
 
 
 class FakeGroundedAnswerService:
-    def __init__(self, answer: GroundedAnswer) -> None:
+    def __init__(
+        self,
+        answer: GroundedAnswer | None = None,
+        *,
+        error: Exception | None = None,
+    ) -> None:
         self.answer_result = answer
+        self.error = error
         self.last_request: GroundedAnswerRequest | None = None
 
     def answer(
@@ -30,6 +37,13 @@ class FakeGroundedAnswerService:
         transaction: object,
     ) -> GroundedAnswer:
         self.last_request = request
+
+        if self.error is not None:
+            raise self.error
+
+        if self.answer_result is None:
+            raise RuntimeError("answer result is required")
+
         return self.answer_result
 
 
@@ -195,6 +209,39 @@ def test_create_grounded_answer_returns_answer_with_citations() -> None:
     assert fake_service.last_request.top_k == 5
     assert fake_service.last_request.provider == "fake"
     assert fake_service.last_request.model_name == "fake-embedding-v1"
+
+
+def test_create_grounded_answer_returns_502_for_invalid_provenance() -> None:
+    fake_service = FakeGroundedAnswerService(
+        error=ProvenanceValidationError(
+            "provenance validation failed: evidence_span is not a verbatim "
+            "substring of the referenced candidate (citation 1)",
+        ),
+    )
+
+    app = create_app()
+    app.dependency_overrides[get_grounded_answer_service] = lambda: fake_service
+    app.dependency_overrides[get_answering_transaction] = lambda: FakeTransaction()
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/v1/answers",
+        json={
+            "question": "What is Project Atlas status?",
+            "top_k": 5,
+            "provider": "fake",
+            "model_name": "fake-embedding-v1",
+        },
+    )
+
+    assert response.status_code == 502
+    assert response.json() == {
+        "detail": (
+            "provenance validation failed: evidence_span is not a verbatim "
+            "substring of the referenced candidate (citation 1)"
+        ),
+    }
 
 
 def test_create_grounded_answer_returns_insufficient_context() -> None:

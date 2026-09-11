@@ -12,7 +12,9 @@ from app.domain.answering.entities import (
     GroundedAnswerRequest,
 )
 from app.domain.answering.enums import GroundedAnswerStatus
+from app.domain.answering.provenance import ProvenanceValidationError
 from app.domain.llm_observability.entities import LLMProviderCallRecord
+from app.domain.llm_observability.enums import LLMProviderCallStatus
 from app.domain.retrieval.entities import (
     RetrievedChunk,
     SemanticSearchQuery,
@@ -22,7 +24,9 @@ from app.providers.fake_llm_provider import FakeLLMProvider
 from app.providers.llm import (
     LLMGenerationRequest,
     LLMGenerationResponse,
+    LLMProposedCitation,
     LLMProviderError,
+    LLMUsageMetadata,
 )
 
 
@@ -208,7 +212,44 @@ class UnexpectedFailingLLMProvider:
         raise RuntimeError("socket closed")
 
 
-def make_retrieved_chunk(distance: float = 0.12) -> RetrievedChunk:
+class ScriptedLLMProvider:
+    def __init__(self, response: LLMGenerationResponse) -> None:
+        self._response = response
+        self.last_request: LLMGenerationRequest | None = None
+
+    @property
+    def provider(self) -> str:
+        return "fake"
+
+    @property
+    def model_name(self) -> str:
+        return "fake-llm-v1"
+
+    def generate_answer(
+        self,
+        request: LLMGenerationRequest,
+    ) -> LLMGenerationResponse:
+        self.last_request = request
+        return self._response
+
+
+def make_usage() -> LLMUsageMetadata:
+    return LLMUsageMetadata(
+        provider="fake",
+        model_name="fake-llm-v1",
+        prompt_tokens=10,
+        completion_tokens=5,
+        total_tokens=15,
+        estimated_cost_usd=Decimal("0"),
+        latency_ms=1,
+    )
+
+
+def make_retrieved_chunk(
+    distance: float = 0.12,
+    *,
+    content: str = "Status: At Risk",
+) -> RetrievedChunk:
     return RetrievedChunk(
         vector_index_entry_id=uuid4(),
         source_document_id=uuid4(),
@@ -220,7 +261,7 @@ def make_retrieved_chunk(distance: float = 0.12) -> RetrievedChunk:
         chunk_index=0,
         provider="fake",
         model_name="fake-embedding-v1",
-        content="Status: At Risk",
+        content=content,
         heading_context=("Project Atlas Status", "Summary"),
         distance=distance,
     )
@@ -282,6 +323,420 @@ def test_grounded_answer_service_generates_answer_with_citations() -> None:
     assert citation.stable_section_key == "project-atlas-status/summary"
     assert citation.quote == "Status: At Risk"
     assert citation.distance == 0.12
+
+
+def test_grounded_answer_service_exposes_stable_candidate_ids_to_provider() -> None:
+    chunk = make_retrieved_chunk()
+    transaction = FakeTransaction()
+    retriever = FakeSemanticRetriever(make_search_result(results=(chunk,)))
+    llm_provider = ScriptedLLMProvider(
+        LLMGenerationResponse(
+            answer="Project Atlas is at risk.",
+            citations=(
+                LLMProposedCitation(
+                    candidate_id=str(chunk.chunk_version_id),
+                    evidence_span="Status: At Risk",
+                ),
+            ),
+            usage=make_usage(),
+        ),
+    )
+    service = GroundedAnswerService(
+        retriever=retriever,
+        llm_provider=llm_provider,
+    )
+
+    service.answer(
+        request=GroundedAnswerRequest(
+            question="What is Project Atlas status?",
+            top_k=5,
+            provider="fake",
+            model_name="fake-embedding-v1",
+        ),
+        transaction=transaction,  # type: ignore[arg-type]
+    )
+
+    assert llm_provider.last_request is not None
+    assert llm_provider.last_request.context_chunks[0].candidate_id == str(
+        chunk.chunk_version_id,
+    )
+
+
+def test_grounded_answer_service_fake_provider_output_goes_through_validation() -> None:
+    chunk = make_retrieved_chunk()
+    transaction = FakeTransaction()
+    retriever = FakeSemanticRetriever(make_search_result(results=(chunk,)))
+    service = GroundedAnswerService(
+        retriever=retriever,
+        llm_provider=FakeLLMProvider(),
+    )
+
+    answer = service.answer(
+        request=GroundedAnswerRequest(
+            question="What is Project Atlas status?",
+            top_k=5,
+            provider="fake",
+            model_name="fake-embedding-v1",
+        ),
+        transaction=transaction,  # type: ignore[arg-type]
+    )
+
+    assert answer.status == GroundedAnswerStatus.ANSWERED
+    assert answer.citations[0].quote == "Status: At Risk"
+    assert answer.citations[0].chunk_version_id == chunk.chunk_version_id
+
+
+def test_grounded_answer_service_rejects_candidate_outside_snapshot() -> None:
+    chunk = make_retrieved_chunk()
+    transaction = FakeTransaction()
+    retriever = FakeSemanticRetriever(make_search_result(results=(chunk,)))
+    llm_provider = ScriptedLLMProvider(
+        LLMGenerationResponse(
+            answer="Fabricated provenance.",
+            citations=(
+                LLMProposedCitation(
+                    candidate_id=str(uuid4()),
+                    evidence_span="Status: At Risk",
+                ),
+            ),
+            usage=make_usage(),
+        ),
+    )
+    service = GroundedAnswerService(
+        retriever=retriever,
+        llm_provider=llm_provider,
+    )
+
+    with pytest.raises(
+        ProvenanceValidationError,
+        match="not present in the retrieval snapshot",
+    ):
+        service.answer(
+            request=GroundedAnswerRequest(
+                question="What is Project Atlas status?",
+                top_k=5,
+                provider="fake",
+                model_name="fake-embedding-v1",
+            ),
+            transaction=transaction,  # type: ignore[arg-type]
+        )
+
+    assert transaction.answer_records.records == {}
+    assert transaction.answer_citation_records.records == {}
+
+    provider_calls = list(transaction.llm_provider_calls.records.values())
+
+    assert len(provider_calls) == 1
+    assert provider_calls[0].answer_id is None
+    assert provider_calls[0].status == LLMProviderCallStatus.SUCCEEDED
+    assert provider_calls[0].query_trace_id == retriever.query_trace_id
+    assert provider_calls[0].provider == "fake"
+    assert provider_calls[0].model_name == "fake-llm-v1"
+    assert provider_calls[0].prompt_tokens == 10
+    assert provider_calls[0].completion_tokens == 5
+    assert provider_calls[0].total_tokens == 15
+    assert provider_calls[0].estimated_cost_usd == Decimal("0")
+    assert provider_calls[0].error_message is None
+    assert transaction.commit_count == 1
+
+
+def test_grounded_answer_service_rejects_fabricated_evidence_span() -> None:
+    chunk = make_retrieved_chunk()
+    transaction = FakeTransaction()
+    retriever = FakeSemanticRetriever(make_search_result(results=(chunk,)))
+    llm_provider = ScriptedLLMProvider(
+        LLMGenerationResponse(
+            answer="Fabricated provenance.",
+            citations=(
+                LLMProposedCitation(
+                    candidate_id=str(chunk.chunk_version_id),
+                    evidence_span="Status: Completely Fabricated",
+                ),
+            ),
+            usage=make_usage(),
+        ),
+    )
+    service = GroundedAnswerService(
+        retriever=retriever,
+        llm_provider=llm_provider,
+    )
+
+    with pytest.raises(
+        ProvenanceValidationError,
+        match="not a verbatim substring",
+    ):
+        service.answer(
+            request=GroundedAnswerRequest(
+                question="What is Project Atlas status?",
+                top_k=5,
+                provider="fake",
+                model_name="fake-embedding-v1",
+            ),
+            transaction=transaction,  # type: ignore[arg-type]
+        )
+
+    assert transaction.answer_records.records == {}
+    assert transaction.answer_citation_records.records == {}
+    assert len(transaction.llm_provider_calls.records) == 1
+    assert transaction.commit_count == 1
+
+
+def test_grounded_answer_service_rejects_empty_evidence_span() -> None:
+    chunk = make_retrieved_chunk()
+    transaction = FakeTransaction()
+    retriever = FakeSemanticRetriever(make_search_result(results=(chunk,)))
+    llm_provider = ScriptedLLMProvider(
+        LLMGenerationResponse(
+            answer="Empty span.",
+            citations=(
+                LLMProposedCitation(
+                    candidate_id=str(chunk.chunk_version_id),
+                    evidence_span=" ",
+                ),
+            ),
+            usage=make_usage(),
+        ),
+    )
+    service = GroundedAnswerService(
+        retriever=retriever,
+        llm_provider=llm_provider,
+    )
+
+    with pytest.raises(
+        ProvenanceValidationError,
+        match="evidence_span must not be empty",
+    ):
+        service.answer(
+            request=GroundedAnswerRequest(
+                question="What is Project Atlas status?",
+                top_k=5,
+                provider="fake",
+                model_name="fake-embedding-v1",
+            ),
+            transaction=transaction,  # type: ignore[arg-type]
+        )
+
+    assert transaction.answer_records.records == {}
+    assert transaction.answer_citation_records.records == {}
+    assert len(transaction.llm_provider_calls.records) == 1
+    assert transaction.commit_count == 1
+
+
+def test_grounded_answer_service_persists_provider_call_usage_when_provenance_rejected() -> None:
+    chunk = make_retrieved_chunk()
+    query_trace_id = uuid4()
+    transaction = FakeTransaction()
+    retriever = FakeSemanticRetriever(
+        make_search_result(
+            results=(chunk,),
+            query_trace_id=query_trace_id,
+        ),
+    )
+    usage = LLMUsageMetadata(
+        provider="fake",
+        model_name="fake-llm-v1",
+        prompt_tokens=21,
+        completion_tokens=7,
+        total_tokens=28,
+        estimated_cost_usd=Decimal("0.0123"),
+        latency_ms=9,
+    )
+    llm_provider = ScriptedLLMProvider(
+        LLMGenerationResponse(
+            answer="Rejected generation.",
+            citations=(
+                LLMProposedCitation(
+                    candidate_id=str(uuid4()),
+                    evidence_span="Status: At Risk",
+                ),
+            ),
+            usage=usage,
+        ),
+    )
+    service = GroundedAnswerService(
+        retriever=retriever,
+        llm_provider=llm_provider,
+    )
+
+    with pytest.raises(ProvenanceValidationError):
+        service.answer(
+            request=GroundedAnswerRequest(
+                question="What is Project Atlas status?",
+                top_k=5,
+                provider="fake",
+                model_name="fake-embedding-v1",
+            ),
+            transaction=transaction,  # type: ignore[arg-type]
+        )
+
+    assert transaction.answer_records.records == {}
+    assert transaction.answer_citation_records.records == {}
+
+    provider_calls = list(transaction.llm_provider_calls.records.values())
+
+    assert len(provider_calls) == 1
+
+    provider_call = provider_calls[0]
+
+    assert provider_call.answer_id is None
+    assert provider_call.query_trace_id == query_trace_id
+    assert provider_call.status == LLMProviderCallStatus.SUCCEEDED
+    assert provider_call.provider == "fake"
+    assert provider_call.model_name == "fake-llm-v1"
+    assert provider_call.prompt_tokens == 21
+    assert provider_call.completion_tokens == 7
+    assert provider_call.total_tokens == 28
+    assert provider_call.estimated_cost_usd == Decimal("0.0123")
+    assert provider_call.latency_ms >= 0
+    assert provider_call.error_message is None
+    assert transaction.flush_count == 0
+    assert transaction.commit_count == 1
+
+
+def test_grounded_answer_service_accepts_and_persists_multiple_valid_citations() -> None:
+    first = make_retrieved_chunk(content="Status: At Risk")
+    second = make_retrieved_chunk(distance=0.25, content="Owner: Platform Team")
+    transaction = FakeTransaction()
+    retriever = FakeSemanticRetriever(
+        make_search_result(results=(first, second)),
+    )
+    llm_provider = ScriptedLLMProvider(
+        LLMGenerationResponse(
+            answer="Project Atlas is at risk and owned by Platform Team.",
+            citations=(
+                LLMProposedCitation(
+                    candidate_id=str(first.chunk_version_id),
+                    evidence_span="Status: At Risk",
+                ),
+                LLMProposedCitation(
+                    candidate_id=str(second.chunk_version_id),
+                    evidence_span="Owner: Platform Team",
+                ),
+            ),
+            usage=make_usage(),
+        ),
+    )
+    service = GroundedAnswerService(
+        retriever=retriever,
+        llm_provider=llm_provider,
+    )
+
+    answer = service.answer(
+        request=GroundedAnswerRequest(
+            question="What is Project Atlas status?",
+            top_k=5,
+            provider="fake",
+            model_name="fake-embedding-v1",
+        ),
+        transaction=transaction,  # type: ignore[arg-type]
+    )
+
+    assert answer.answer_id is not None
+    assert len(answer.citations) == 2
+    assert answer.citations[0].chunk_version_id == first.chunk_version_id
+    assert answer.citations[0].quote == "Status: At Risk"
+    assert answer.citations[1].chunk_version_id == second.chunk_version_id
+    assert answer.citations[1].quote == "Owner: Platform Team"
+
+    citation_records = transaction.answer_citation_records.list_by_answer_id(
+        answer.answer_id,
+    )
+
+    assert len(citation_records) == 2
+    assert citation_records[0].quote == "Status: At Risk"
+    assert citation_records[1].quote == "Owner: Platform Team"
+    assert citation_records[0].document_version_id == first.document_version_id
+    assert citation_records[1].document_version_id == second.document_version_id
+
+
+def test_grounded_answer_service_fails_closed_on_mixed_citations() -> None:
+    valid = make_retrieved_chunk(content="Status: At Risk")
+    transaction = FakeTransaction()
+    retriever = FakeSemanticRetriever(make_search_result(results=(valid,)))
+    llm_provider = ScriptedLLMProvider(
+        LLMGenerationResponse(
+            answer="Mixed provenance.",
+            citations=(
+                LLMProposedCitation(
+                    candidate_id=str(valid.chunk_version_id),
+                    evidence_span="Status: At Risk",
+                ),
+                LLMProposedCitation(
+                    candidate_id=str(uuid4()),
+                    evidence_span="Status: At Risk",
+                ),
+            ),
+            usage=make_usage(),
+        ),
+    )
+    service = GroundedAnswerService(
+        retriever=retriever,
+        llm_provider=llm_provider,
+    )
+
+    with pytest.raises(ProvenanceValidationError):
+        service.answer(
+            request=GroundedAnswerRequest(
+                question="What is Project Atlas status?",
+                top_k=5,
+                provider="fake",
+                model_name="fake-embedding-v1",
+            ),
+            transaction=transaction,  # type: ignore[arg-type]
+        )
+
+    assert transaction.answer_records.records == {}
+    assert transaction.answer_citation_records.records == {}
+    assert len(transaction.llm_provider_calls.records) == 1
+    assert transaction.commit_count == 1
+
+
+def test_grounded_answer_service_persists_only_validated_model_proposed_provenance() -> None:
+    first = make_retrieved_chunk(content="Status: At Risk. Escalation pending.")
+    second = make_retrieved_chunk(distance=0.3, content="Owner: Platform Team")
+    transaction = FakeTransaction()
+    retriever = FakeSemanticRetriever(
+        make_search_result(results=(first, second)),
+    )
+    llm_provider = ScriptedLLMProvider(
+        LLMGenerationResponse(
+            answer="Project Atlas is at risk.",
+            citations=(
+                LLMProposedCitation(
+                    candidate_id=str(first.chunk_version_id),
+                    evidence_span="Status: At Risk",
+                ),
+            ),
+            usage=make_usage(),
+        ),
+    )
+    service = GroundedAnswerService(
+        retriever=retriever,
+        llm_provider=llm_provider,
+    )
+
+    answer = service.answer(
+        request=GroundedAnswerRequest(
+            question="What is Project Atlas status?",
+            top_k=5,
+            provider="fake",
+            model_name="fake-embedding-v1",
+        ),
+        transaction=transaction,  # type: ignore[arg-type]
+    )
+
+    assert len(answer.citations) == 1
+    assert answer.citations[0].chunk_version_id == first.chunk_version_id
+    assert answer.citations[0].quote == "Status: At Risk"
+    assert answer.citations[0].quote != first.content
+
+    citation_records = transaction.answer_citation_records.list_by_answer_id(
+        answer.answer_id,  # type: ignore[arg-type]
+    )
+
+    assert len(citation_records) == 1
+    assert citation_records[0].chunk_version_id == first.chunk_version_id
+    assert citation_records[0].quote == "Status: At Risk"
 
 
 def test_grounded_answer_service_persists_answer_record_and_citations() -> None:
