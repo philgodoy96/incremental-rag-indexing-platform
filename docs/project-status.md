@@ -30,7 +30,9 @@ It is not a chatbot. The emphasis is on versioning, retrieval correctness, opera
 - chunk versions
 - embeddings
 - active vector index entries
-- checksum-driven unchanged document handling where implemented
+- checksum-driven unchanged document handling
+- section-level differential materialization with reusable unchanged section/chunk artifacts
+- embedding reuse by embedding_input_hash
 
 ### Retrieval
 

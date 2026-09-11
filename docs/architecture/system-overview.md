@@ -69,8 +69,8 @@ The current repository implements:
 1. Ingesting local Markdown documents.
 2. Detecting document changes.
 3. Creating immutable document versions.
-4. Extracting section versions from document versions.
-5. Creating deterministic chunk versions from section versions.
+4. Extracting sections and associating them with document version snapshots.
+5. Creating deterministic chunk versions for new or modified sections only.
 6. Generating embeddings for new or changed chunks.
 7. Avoiding duplicate embedding generation where reuse applies.
 8. Maintaining a rebuildable vector index.

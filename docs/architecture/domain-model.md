@@ -67,22 +67,25 @@ If the document changes, create a new DocumentVersion.
 
 ### SectionVersion
 
-Represents an immutable section extracted from a DocumentVersion.
+Represents an immutable section content artifact.
 
-Important fields:
+Important content fields:
 
 - id
-- document_version_id
 - stable_section_key
 - heading_path
 - heading_level
 - title
 - body
 - section_checksum
-- ordinal
 - created_at
 
-A SectionVersion should be deterministic for the same input document.
+Snapshot membership is stored in `document_version_sections` (`document_version_id`,
+`section_version_id`, `ordinal`). When loaded for a snapshot, domain `SectionVersion`
+objects are hydrated with that membership's `document_version_id` and `ordinal`.
+
+Unchanged section content can be reused across document versions. A new document snapshot
+does not require duplicating unchanged section bodies.
 
 ### ChunkVersion
 

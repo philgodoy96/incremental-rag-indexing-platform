@@ -26,9 +26,12 @@ Performs these steps:
 4. Creates a DocumentVersion for new documents.
 5. Reuses the latest DocumentVersion when content is unchanged.
 6. Creates a new DocumentVersion when content checksum changes.
-7. Updates SourceDocument.current_document_version_id.
-8. Marks the IngestionRun as completed.
-9. Commits the transaction.
+7. For a new DocumentVersion, computes a section delta against the previous snapshot and
+   reuses unchanged section/chunk artifacts while reprocessing only modified/added sections.
+8. Ensures embeddings and current vector projection for the snapshot.
+9. Updates SourceDocument.current_document_version_id.
+10. Marks the IngestionRun as completed.
+11. Commits the transaction.
 
 ## Idempotency
 

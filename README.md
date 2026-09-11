@@ -14,6 +14,7 @@ This platform addresses engineering problems such as:
 
 - detecting what changed in a document and reprocessing only affected sections and chunks
 - preserving immutable version history for documents, sections, and chunks
+- reusing unchanged section/chunk materialization across document snapshots via explicit membership
 - projecting a current vector index from durable source and embedding records
 - measuring retrieval quality instead of relying on anecdotal answer inspection
 - persisting LLM provider calls, including failures, for audit and cost analysis
@@ -23,8 +24,8 @@ This platform addresses engineering problems such as:
 
 Implemented capabilities include:
 
-- Incremental local Markdown document ingestion with checksum-driven change detection
-- Document, section, and chunk versioning
+- Incremental local Markdown document ingestion with document-checksum no-op and section-level differential materialization
+- Document, section, and chunk versioning with reusable immutable section/chunk content across snapshots
 - Embedding generation with cross-version reuse where input is unchanged
 - Current vector index projection for semantic retrieval
 - Semantic retrieval API with query traces
@@ -45,7 +46,7 @@ High-level data and request flow:
 ```text
 Source documents
   -> document versions
-  -> section/chunk versions
+  -> section membership / reusable section+chunk versions
   -> embeddings
   -> vector index entries
   -> retrieval
@@ -53,6 +54,13 @@ Source documents
   -> grounded answers
   -> validated provenance citations / provider calls / usage reports
 ```
+
+When a document changes, ingestion computes a deterministic section delta using stable
+section identity and content checksums. Unchanged sections reuse prior immutable
+materialization and bypass rechunking; modified and added sections alone are reprocessed.
+Removed sections remain historically addressable but are not members of the new snapshot.
+Document-level checksum matching remains the whole-document no-op fast path. Embedding
+reuse by `embedding_input_hash` is a separate mechanism from section reuse.
 
 Architecture choices:
 
