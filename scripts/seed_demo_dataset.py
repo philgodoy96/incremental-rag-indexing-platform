@@ -203,7 +203,17 @@ def print_ingestion_summary(
     print(f"Documents skipped (unchanged): {skipped}")
     print()
     print(f"Sections created (this run): {result.sections_created}")
-    print(f"Chunks created (this run): {result.chunks_created}")
+    print(
+        "Section delta (this run): "
+        f"{result.sections_unchanged} unchanged, "
+        f"{result.sections_modified} modified, "
+        f"{result.sections_added} added, "
+        f"{result.sections_removed} removed",
+    )
+    print(
+        "Chunks (this run): "
+        f"{result.chunks_created} created, {result.chunks_reused} reused",
+    )
     print(
         "Embeddings (this run): "
         f"{result.embeddings_created} created, {result.embeddings_reused} reused",

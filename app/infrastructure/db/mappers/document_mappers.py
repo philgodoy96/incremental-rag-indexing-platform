@@ -1,7 +1,10 @@
+from uuid import UUID
+
 from app.domain.documents.entities import (
     ChunkEmbeddingLink,
     ChunkVersion,
     DocumentVersion,
+    DocumentVersionSection,
     EmbeddingCostRecord,
     EmbeddingRecord,
     IngestionRun,
@@ -18,6 +21,7 @@ from app.infrastructure.db.models.document_models import (
     ChunkEmbeddingLinkModel,
     ChunkVersionModel,
     DocumentVersionModel,
+    DocumentVersionSectionModel,
     EmbeddingCostRecordModel,
     EmbeddingRecordModel,
     IngestionRunModel,
@@ -91,29 +95,58 @@ def section_version_to_model(entity: SectionVersion) -> SectionVersionModel:
     model = SectionVersionModel()
 
     model.id = entity.id
-    model.document_version_id = entity.document_version_id
     model.stable_section_key = entity.stable_section_key
     model.heading_path = list(entity.heading_path)
     model.heading_level = entity.heading_level
     model.title = entity.title
     model.body = entity.body
     model.section_checksum = entity.section_checksum
-    model.ordinal = entity.ordinal
     model.created_at = entity.created_at
 
     return model
 
 
-def section_version_from_model(model: SectionVersionModel) -> SectionVersion:
+def section_version_from_model(
+    model: SectionVersionModel,
+    *,
+    document_version_id: UUID,
+    ordinal: int,
+) -> SectionVersion:
     return SectionVersion(
         id=model.id,
-        document_version_id=model.document_version_id,
+        document_version_id=document_version_id,
         stable_section_key=model.stable_section_key,
         heading_path=tuple(model.heading_path),
         heading_level=model.heading_level,
         title=model.title,
         body=model.body,
         section_checksum=model.section_checksum,
+        ordinal=ordinal,
+        created_at=model.created_at,
+    )
+
+
+def document_version_section_to_model(
+    entity: DocumentVersionSection,
+) -> DocumentVersionSectionModel:
+    model = DocumentVersionSectionModel()
+
+    model.id = entity.id
+    model.document_version_id = entity.document_version_id
+    model.section_version_id = entity.section_version_id
+    model.ordinal = entity.ordinal
+    model.created_at = entity.created_at
+
+    return model
+
+
+def document_version_section_from_model(
+    model: DocumentVersionSectionModel,
+) -> DocumentVersionSection:
+    return DocumentVersionSection(
+        id=model.id,
+        document_version_id=model.document_version_id,
+        section_version_id=model.section_version_id,
         ordinal=model.ordinal,
         created_at=model.created_at,
     )
