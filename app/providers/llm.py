@@ -16,11 +16,13 @@ class LLMProviderError(Exception):
 
 @dataclass(frozen=True, slots=True)
 class LLMContextChunk:
+    candidate_id: str
     rank: int
     content: str
     heading_context: tuple[str, ...]
 
     def __post_init__(self) -> None:
+        ensure_not_blank(self.candidate_id, "candidate_id")
         ensure_not_blank(self.content, "content")
 
         if self.rank < 1:
@@ -78,8 +80,18 @@ class LLMUsageMetadata:
 
 
 @dataclass(frozen=True, slots=True)
+class LLMProposedCitation:
+    candidate_id: str
+    evidence_span: str
+
+    def __post_init__(self) -> None:
+        ensure_not_blank(self.candidate_id, "candidate_id")
+
+
+@dataclass(frozen=True, slots=True)
 class LLMGenerationResponse:
     answer: str
+    citations: tuple[LLMProposedCitation, ...]
     usage: LLMUsageMetadata
 
     def __post_init__(self) -> None:

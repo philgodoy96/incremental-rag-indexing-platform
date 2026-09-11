@@ -4,6 +4,7 @@ from time import perf_counter
 from app.providers.llm import (
     LLMGenerationRequest,
     LLMGenerationResponse,
+    LLMProposedCitation,
     LLMProvider,
     LLMUsageMetadata,
 )
@@ -32,17 +33,28 @@ class FakeLLMProvider(LLMProvider):
 
         first_chunk = request.context_chunks[0]
         answer = f"Based on the retrieved context, {first_chunk.content}"
+        evidence_span = first_chunk.content
 
         prompt_tokens = self._estimate_tokens(
             request.question,
             *[chunk.content for chunk in request.context_chunks],
         )
-        completion_tokens = self._estimate_tokens(answer)
+        completion_tokens = self._estimate_tokens(
+            answer,
+            evidence_span,
+            first_chunk.candidate_id,
+        )
 
         latency_ms = int((perf_counter() - started_at) * 1000)
 
         return LLMGenerationResponse(
             answer=answer,
+            citations=(
+                LLMProposedCitation(
+                    candidate_id=first_chunk.candidate_id,
+                    evidence_span=evidence_span,
+                ),
+            ),
             usage=LLMUsageMetadata(
                 provider=self._provider,
                 model_name=self._model_name,

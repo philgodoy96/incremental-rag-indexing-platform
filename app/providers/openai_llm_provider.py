@@ -1,3 +1,4 @@
+import json
 from collections.abc import Sequence
 from decimal import Decimal
 from time import perf_counter
@@ -9,6 +10,7 @@ from app.providers.llm import (
     LLMContextChunk,
     LLMGenerationRequest,
     LLMGenerationResponse,
+    LLMProposedCitation,
     LLMProvider,
     LLMProviderError,
     LLMUsageMetadata,
@@ -106,15 +108,17 @@ class OpenAILLMProvider(LLMProvider):
             ) from error
 
         latency_ms = int((perf_counter() - started_at) * 1000)
-        answer = self._extract_output_text(response)
+        output_text = self._extract_output_text(response)
 
-        if not answer.strip():
+        if not output_text.strip():
             raise LLMProviderError("OpenAI response output_text was empty")
 
+        answer, citations = self._parse_structured_output(output_text)
         prompt_tokens, completion_tokens = self._extract_usage(response)
 
         return LLMGenerationResponse(
             answer=answer,
+            citations=citations,
             usage=LLMUsageMetadata(
                 provider=self.provider,
                 model_name=self.model_name,
@@ -132,10 +136,19 @@ class OpenAILLMProvider(LLMProvider):
     def _build_instructions(self) -> str:
         return (
             "You are a grounded enterprise knowledge assistant. "
-            "Answer using only the provided context. "
+            "Answer using only the provided retrieval context. "
             "If the context is insufficient, say that the provided context "
             "does not contain enough information. "
-            "Do not invent facts."
+            "Do not invent facts. "
+            "Return a single JSON object with keys "
+            '"answer" (string) and "citations" (array). '
+            "Each citation must include "
+            '"candidate_id" (exact candidate_id string from the context) and '
+            '"evidence_span" (non-empty verbatim substring copied from that '
+            "candidate's content). "
+            "Use only candidate_id values supplied in the context. "
+            "Do not invent candidate references. "
+            "Do not wrap the JSON in markdown fences."
         )
 
     def _build_input(self, request: LLMGenerationRequest) -> str:
@@ -155,7 +168,8 @@ class OpenAILLMProvider(LLMProvider):
         heading_context = " > ".join(chunk.heading_context)
 
         return (
-            f"[{chunk.rank}] {heading_context}\n"
+            f"[candidate_id={chunk.candidate_id} rank={chunk.rank}] "
+            f"{heading_context}\n"
             f"{chunk.content}"
         )
 
@@ -166,6 +180,66 @@ class OpenAILLMProvider(LLMProvider):
             return output_text
 
         raise LLMProviderError("OpenAI response did not include output_text")
+
+    def _parse_structured_output(
+        self,
+        output_text: str,
+    ) -> tuple[str, tuple[LLMProposedCitation, ...]]:
+        try:
+            payload = json.loads(output_text)
+        except json.JSONDecodeError as error:
+            raise LLMProviderError(
+                "OpenAI response was not valid JSON for the generation contract",
+            ) from error
+
+        if not isinstance(payload, dict):
+            raise LLMProviderError(
+                "OpenAI response JSON must be an object with answer and citations",
+            )
+
+        answer = payload.get("answer")
+
+        if not isinstance(answer, str) or not answer.strip():
+            raise LLMProviderError(
+                "OpenAI response JSON answer must be a non-empty string",
+            )
+
+        raw_citations = payload.get("citations")
+
+        if not isinstance(raw_citations, list):
+            raise LLMProviderError(
+                "OpenAI response JSON citations must be an array",
+            )
+
+        citations: list[LLMProposedCitation] = []
+
+        for raw_citation in raw_citations:
+            if not isinstance(raw_citation, dict):
+                raise LLMProviderError(
+                    "OpenAI response JSON citations must contain objects",
+                )
+
+            candidate_id = raw_citation.get("candidate_id")
+            evidence_span = raw_citation.get("evidence_span")
+
+            if not isinstance(candidate_id, str) or not candidate_id.strip():
+                raise LLMProviderError(
+                    "OpenAI citation candidate_id must be a non-empty string",
+                )
+
+            if not isinstance(evidence_span, str):
+                raise LLMProviderError(
+                    "OpenAI citation evidence_span must be a string",
+                )
+
+            citations.append(
+                LLMProposedCitation(
+                    candidate_id=candidate_id,
+                    evidence_span=evidence_span,
+                ),
+            )
+
+        return answer, tuple(citations)
 
     def _extract_usage(self, response: Any) -> tuple[int, int]:
         usage = getattr(response, "usage", None)
