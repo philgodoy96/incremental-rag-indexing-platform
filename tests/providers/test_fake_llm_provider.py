@@ -1,4 +1,5 @@
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 
@@ -7,6 +8,7 @@ from app.providers.llm import (
     LLMContextChunk,
     LLMGenerationRequest,
     LLMGenerationResponse,
+    LLMProposedCitation,
     LLMProviderError,
     LLMUsageMetadata,
 )
@@ -20,7 +22,18 @@ def test_llm_provider_error_rejects_blank_message() -> None:
 def test_llm_context_chunk_rejects_invalid_rank() -> None:
     with pytest.raises(ValueError, match="rank must be greater"):
         LLMContextChunk(
+            candidate_id=str(uuid4()),
             rank=0,
+            content="Status: At Risk",
+            heading_context=("Project Atlas Status", "Summary"),
+        )
+
+
+def test_llm_context_chunk_rejects_blank_candidate_id() -> None:
+    with pytest.raises(ValueError, match="candidate_id must not be blank"):
+        LLMContextChunk(
+            candidate_id=" ",
+            rank=1,
             content="Status: At Risk",
             heading_context=("Project Atlas Status", "Summary"),
         )
@@ -67,6 +80,12 @@ def test_llm_generation_response_rejects_blank_answer() -> None:
     with pytest.raises(ValueError, match="answer must not be blank"):
         LLMGenerationResponse(
             answer=" ",
+            citations=(
+                LLMProposedCitation(
+                    candidate_id=str(uuid4()),
+                    evidence_span="Status: At Risk",
+                ),
+            ),
             usage=LLMUsageMetadata(
                 provider="fake",
                 model_name="fake-llm-v1",
@@ -86,19 +105,22 @@ def test_fake_llm_provider_exposes_provider_identity() -> None:
     assert provider.model_name == "fake-model"
 
 
-def test_fake_llm_provider_generates_deterministic_answer_from_first_chunk() -> None:
+def test_fake_llm_provider_generates_deterministic_answer_and_proposed_citation() -> None:
     provider = FakeLLMProvider()
+    candidate_id = str(uuid4())
 
     response = provider.generate_answer(
         LLMGenerationRequest(
             question="What is Project Atlas status?",
             context_chunks=(
                 LLMContextChunk(
+                    candidate_id=candidate_id,
                     rank=1,
                     content="Status: At Risk",
                     heading_context=("Project Atlas Status", "Summary"),
                 ),
                 LLMContextChunk(
+                    candidate_id=str(uuid4()),
                     rank=2,
                     content="Owner: Platform Team",
                     heading_context=("Project Atlas Status", "Ownership"),
@@ -108,6 +130,9 @@ def test_fake_llm_provider_generates_deterministic_answer_from_first_chunk() -> 
     )
 
     assert response.answer == "Based on the retrieved context, Status: At Risk"
+    assert len(response.citations) == 1
+    assert response.citations[0].candidate_id == candidate_id
+    assert response.citations[0].evidence_span == "Status: At Risk"
 
 
 def test_fake_llm_provider_returns_usage_metadata() -> None:
@@ -118,6 +143,7 @@ def test_fake_llm_provider_returns_usage_metadata() -> None:
             question="What is Project Atlas status?",
             context_chunks=(
                 LLMContextChunk(
+                    candidate_id=str(uuid4()),
                     rank=1,
                     content="Status: At Risk",
                     heading_context=("Project Atlas Status", "Summary"),
