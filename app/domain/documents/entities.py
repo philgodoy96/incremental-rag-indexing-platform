@@ -124,6 +124,13 @@ class DocumentVersion:
 
 @dataclass(frozen=True, slots=True)
 class SectionVersion:
+    """Immutable section content artifact, hydrated with snapshot membership fields.
+
+    Content identity is ``id`` plus body/checksum fields. ``document_version_id`` and
+    ``ordinal`` describe membership of this artifact in a particular DocumentVersion
+    snapshot and may differ across versions that reuse the same content row.
+    """
+
     id: UUID
     document_version_id: UUID
     stable_section_key: str
@@ -147,6 +154,23 @@ class SectionVersion:
 
         if self.heading_level < 1 or self.heading_level > 6:
             raise ValueError("heading_level must be between 1 and 6")
+
+        if self.ordinal < 0:
+            raise ValueError("ordinal must not be negative")
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentVersionSection:
+    """Associates an immutable SectionVersion with a DocumentVersion snapshot."""
+
+    id: UUID
+    document_version_id: UUID
+    section_version_id: UUID
+    ordinal: int
+    created_at: datetime = field(default_factory=utc_now)
+
+    def __post_init__(self) -> None:
+        ensure_timezone_aware(self.created_at, "created_at")
 
         if self.ordinal < 0:
             raise ValueError("ordinal must not be negative")

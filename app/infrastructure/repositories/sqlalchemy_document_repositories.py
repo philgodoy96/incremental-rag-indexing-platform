@@ -1,6 +1,6 @@
 from typing import Any
 from typing import cast as typing_cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
@@ -9,6 +9,7 @@ from app.domain.documents.entities import (
     ChunkEmbeddingLink,
     ChunkVersion,
     DocumentVersion,
+    DocumentVersionSection,
     EmbeddingCostRecord,
     EmbeddingRecord,
     IngestionRun,
@@ -35,6 +36,7 @@ from app.infrastructure.db.mappers.document_mappers import (
     chunk_version_from_model,
     chunk_version_to_model,
     document_version_from_model,
+    document_version_section_to_model,
     document_version_to_model,
     embedding_cost_record_to_model,
     embedding_record_from_model,
@@ -52,6 +54,7 @@ from app.infrastructure.db.models.document_models import (
     ChunkEmbeddingLinkModel,
     ChunkVersionModel,
     DocumentVersionModel,
+    DocumentVersionSectionModel,
     EmbeddingRecordModel,
     IngestionRunModel,
     SectionVersionModel,
@@ -134,20 +137,53 @@ class SqlAlchemySectionVersionRepository(SectionVersionRepository):
         self,
         document_version_id: UUID,
     ) -> list[SectionVersion]:
-        statement: Select[tuple[SectionVersionModel]] = (
-            select(SectionVersionModel)
-            .where(SectionVersionModel.document_version_id == document_version_id)
-            .order_by(SectionVersionModel.ordinal.asc())
+        statement = (
+            select(SectionVersionModel, DocumentVersionSectionModel)
+            .join(
+                DocumentVersionSectionModel,
+                DocumentVersionSectionModel.section_version_id == SectionVersionModel.id,
+            )
+            .where(
+                DocumentVersionSectionModel.document_version_id == document_version_id,
+            )
+            .order_by(DocumentVersionSectionModel.ordinal.asc())
         )
 
         return [
-            section_version_from_model(model)
-            for model in self._session.execute(statement).scalars().all()
+            section_version_from_model(
+                section_model,
+                document_version_id=membership_model.document_version_id,
+                ordinal=membership_model.ordinal,
+            )
+            for section_model, membership_model in self._session.execute(statement).all()
         ]
 
     def save_many(self, section_versions: list[SectionVersion]) -> None:
         for section_version in section_versions:
             self._session.merge(section_version_to_model(section_version))
+
+            existing_membership = self._session.execute(
+                select(DocumentVersionSectionModel).where(
+                    DocumentVersionSectionModel.document_version_id
+                    == section_version.document_version_id,
+                    DocumentVersionSectionModel.section_version_id == section_version.id,
+                )
+            ).scalar_one_or_none()
+
+            if existing_membership is None:
+                self._session.add(
+                    document_version_section_to_model(
+                        DocumentVersionSection(
+                            id=uuid4(),
+                            document_version_id=section_version.document_version_id,
+                            section_version_id=section_version.id,
+                            ordinal=section_version.ordinal,
+                        )
+                    )
+                )
+            else:
+                existing_membership.ordinal = section_version.ordinal
+                self._session.merge(existing_membership)
 
 
 class SqlAlchemyChunkVersionRepository(ChunkVersionRepository):

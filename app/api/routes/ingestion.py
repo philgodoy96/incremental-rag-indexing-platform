@@ -43,7 +43,12 @@ class IngestedDocumentResponse(BaseModel):
     version_number: int | None
     content_checksum: str
     sections_created: int
+    sections_unchanged: int
+    sections_modified: int
+    sections_added: int
+    sections_removed: int
     chunks_created: int
+    chunks_reused: int
     embeddings_created: int
     embeddings_reused: int
     vector_entries_created: int
@@ -61,7 +66,12 @@ class LocalSeedDocumentIngestionResponse(BaseModel):
     documents_seen: int
     documents_changed: int
     sections_created: int
+    sections_unchanged: int
+    sections_modified: int
+    sections_added: int
+    sections_removed: int
     chunks_created: int
+    chunks_reused: int
     embeddings_created: int
     embeddings_reused: int
     vector_entries_created: int
@@ -166,7 +176,12 @@ def build_ingestion_response(
         documents_seen=result.documents_seen,
         documents_changed=result.documents_changed,
         sections_created=result.sections_created,
+        sections_unchanged=result.sections_unchanged,
+        sections_modified=result.sections_modified,
+        sections_added=result.sections_added,
+        sections_removed=result.sections_removed,
         chunks_created=result.chunks_created,
+        chunks_reused=result.chunks_reused,
         embeddings_created=result.embeddings_created,
         embeddings_reused=result.embeddings_reused,
         vector_entries_created=result.vector_entries_created,
@@ -184,12 +199,17 @@ def build_ingestion_response(
                 version_number=document.version_number,
                 content_checksum=document.content_checksum,
                 sections_created=document.sections_created,
+                sections_unchanged=document.sections_unchanged,
+                sections_modified=document.sections_modified,
+                sections_added=document.sections_added,
+                sections_removed=document.sections_removed,
                 chunks_created=document.chunks_created,
+                chunks_reused=document.chunks_reused,
                 embeddings_created=document.embeddings_created,
                 embeddings_reused=document.embeddings_reused,
-                vector_entries_created=result.vector_entries_created,
-                vector_entries_updated=result.vector_entries_updated,
-                vector_entries_deactivated=result.vector_entries_deactivated,
+                vector_entries_created=document.vector_entries_created,
+                vector_entries_updated=document.vector_entries_updated,
+                vector_entries_deactivated=document.vector_entries_deactivated,
                 embedding_tokens_processed=document.embedding_tokens_processed,
                 estimated_embedding_cost_usd_micros=(
                     document.estimated_embedding_cost_usd_micros
