@@ -375,6 +375,9 @@ Important fields:
 - quote
 - citation_index
 
+`quote` stores a deterministically validated evidence span proposed by the
+model. Validated provenance proves the span came from a candidate in the
+generation retrieval snapshot. It does not prove semantic entailment.
 ### AnswerFeedback
 
 Planned concept for user feedback. Not implemented in the current repository.

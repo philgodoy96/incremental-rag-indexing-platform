@@ -28,14 +28,18 @@ The system will expose:
 The GroundedAnswerService will:
 
 1. Convert the user question into a semantic retrieval query.
-2. Run semantic retrieval.
+2. Run semantic retrieval and retain an immutable retrieval snapshot.
 3. Require query_trace_id.
 4. Return insufficient_context if no chunks are retrieved.
-5. Generate answer text using LLMProvider when chunks exist.
-6. Build citations from retrieved chunks in backend code.
-7. Return a GroundedAnswer.
+5. Generate a structured answer draft using LLMProvider when chunks exist.
+6. Require the model to propose provenance citations with stable candidate
+   references and verbatim evidence spans.
+7. Validate proposed provenance deterministically in application code.
+8. Persist and return only validated provenance as a GroundedAnswer.
 
-The current implementation uses FakeLLMProvider.
+See ADR-023 for the provenance vs semantic entailment boundary.
+
+The current default implementation uses FakeLLMProvider.
 
 ## Why Use a Provider Boundary
 
@@ -48,13 +52,18 @@ This allows the system to support:
 - AWS Bedrock provider later
 - fallback providers later
 
-## Why Backend-Owned Citations
+## Why Application-Validated Provenance
 
-The LLM does not decide citations.
+The model may propose provenance. The model may not establish provenance.
 
-The backend constructs citations from retrieved chunks.
+The application establishes provenance by checking that each proposed citation:
 
-This reduces the risk of citation hallucination and guarantees that every returned citation maps to actual retrieved context.
+- references a candidate in the exact retrieval snapshot used for generation
+- includes a non-empty evidence span that occurs verbatim in that candidate
+
+This prevents invented candidate references from being published, while still
+recording which evidence the model selected rather than attaching every
+retrieved chunk automatically.
 
 ## Why Support insufficient_context
 
@@ -71,24 +80,31 @@ This is a safer default for enterprise RAG systems.
 - Introduces end-to-end RAG behavior.
 - Keeps answer generation testable with fake providers.
 - Preserves traceability through query_trace_id.
-- Prevents LLM-generated fake citations.
+- Prevents publishing invented candidate references.
 - Creates a clean extension point for real LLM providers.
 
 ### Negative
 
-- Answers are not persisted yet.
+- Invalid model-proposed provenance fails closed and blocks answer publication.
+  The API surfaces that as HTTP 502 Bad Gateway. Completed provider usage is
+  still persisted with `answer_id=None`.
+- Verbatim provenance validation does not prove semantic entailment.
 - FakeLLMProvider does not represent real model behavior.
-- Citation verification is still basic.
-- No answer-level cost tracking yet.
+- No answer-level cost tracking in the original milestone (added later).
 - No authorization or tenant scoping yet.
 
 ## Alternatives Considered
 
-### Let the LLM Return Citations
+### Attach All Retrieved Candidates As Citations
 
-The model could be prompted to cite sources directly.
+The backend could always cite every retrieved chunk.
 
-Rejected for now because models can invent citations or cite chunks incorrectly.
+Rejected as the authoritative provenance path because that proves evidence
+supply, not model-selected provenance. See ADR-023.
+
+### Trust Model Citations Without Deterministic Validation
+
+Rejected because models can invent citations or cite chunks incorrectly.
 
 ### Skip insufficient_context Handling
 
@@ -100,16 +116,17 @@ Rejected because that encourages hallucination.
 
 A real LLM provider could be added now.
 
-Deferred to keep the initial implementation deterministic, cheap, and focused on architecture.
+Deferred originally to keep the initial implementation deterministic, cheap,
+and focused on architecture. An optional OpenAI adapter was added later.
 
 ## Follow-Up
 
-Future work should add:
+Related follow-up work includes:
 
 - answer persistence
 - answer trace records
 - real LLM provider adapter
-- citation verification
+- deterministic provenance validation (ADR-023)
 - LLM cost tracking
-- groundedness evaluation
+- semantic entailment / groundedness evaluation
 - provider fallback strategy

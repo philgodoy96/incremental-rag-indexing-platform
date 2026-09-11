@@ -2,11 +2,14 @@
 
 ## Purpose
 
-Answer persistence stores the final grounded answer returned by the system.
+Answer persistence stores the final grounded answer returned by the system
+after deterministic provenance validation succeeds.
 
-Before this milestone, the platform persisted retrieval traces, but the final answer only existed in the API response.
+Before this milestone, the platform persisted retrieval traces, but the final
+answer only existed in the API response.
 
-This document describes durable answer records so generated answers can be audited after the request completes.
+This document describes durable answer records so generated answers can be
+audited after the request completes.
 
 ## Why This Matters
 
@@ -15,12 +18,13 @@ A production RAG platform needs to answer questions such as:
 - What question was asked?
 - What answer did the system return?
 - Which query_trace_id supported the answer?
-- Which citations were returned?
+- Which validated provenance citations were returned?
 - Which provider and model were used?
 - Was the answer answered or insufficient_context?
 - When was the answer created?
 
-Without answer persistence, the platform can inspect retrieval behavior but cannot inspect the final product delivered to the caller.
+Without answer persistence, the platform can inspect retrieval behavior but
+cannot inspect the final product delivered to the caller.
 
 ## Data Model
 
@@ -47,7 +51,7 @@ It includes:
 
 ## AnswerCitationRecord
 
-AnswerCitationRecord stores persisted citation metadata for an answer.
+AnswerCitationRecord stores persisted validated provenance for an answer.
 
 It includes:
 
@@ -67,6 +71,34 @@ It includes:
 - distance
 - created_at
 
+`quote` stores the validated evidence span proposed by the model and accepted
+by deterministic provenance validation. It is not a dump of every retrieved
+candidate and does not imply semantic entailment.
+
+Source and version identifiers remain the immutable identities of the
+referenced retrieval candidates.
+
+## Provenance Persistence Rule
+
+Only model-proposed citations that pass deterministic validation are
+persisted.
+
+Invalid provenance fails closed:
+
+- the answer is not published as successfully provenance-validated
+- citations are not silently replaced with all retrieved candidates
+- no AnswerRecord or AnswerCitationRecord is persisted for the rejected draft
+- the completed provider invocation is still persisted as an
+  LLMProviderCallRecord with `answer_id=None` and status `succeeded`, so usage
+  and cost accounting include rejected generations
+
+Provenance rejection is an application rejection of otherwise completed provider
+output. It is not a provider transport failure.
+
+Deterministic provenance validation verifies that a model-selected evidence
+span came from a candidate in the immutable retrieval snapshot used for
+generation. It does not prove semantic entailment or factual correctness.
+
 ## Audit Chain
 
 Answer persistence creates a durable audit chain:
@@ -78,7 +110,11 @@ Answer persistence creates a durable audit chain:
     -> ChunkVersion
     -> DocumentVersion
 
-This makes it possible to inspect both the answer and the retrieval execution that supported it.
+Validated citations also retain direct chunk/document version identifiers for
+the accepted evidence spans.
+
+This makes it possible to inspect both the answer and the retrieval execution
+that supported it.
 
 ## Transaction Boundary
 
@@ -120,12 +156,14 @@ Answer read APIs are available at:
 - GET /api/v1/answers
 - GET /api/v1/answers/{answer_id}
 
-LLM provider calls, token usage metadata, estimated cost, and latency are persisted through LLMProviderCallRecord and exposed through provider-call and usage-reporting APIs.
+LLM provider calls, token usage metadata, estimated cost, and latency are
+persisted through LLMProviderCallRecord and exposed through provider-call and
+usage-reporting APIs.
 
 The platform does not yet track:
 
 - prompt template version
-- citation verification status
+- semantic entailment / claim-level groundedness
 - answer-level evaluation metrics
 - tenant/workspace scoping
 
@@ -135,7 +173,6 @@ Future hardening may add:
 
 - prompt version tracking
 - answer trace records
-- citation verification
-- groundedness evaluation
+- semantic entailment evaluation
 - tenant/workspace scoping
 - retention policies
