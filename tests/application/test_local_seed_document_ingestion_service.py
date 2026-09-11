@@ -5,6 +5,7 @@ from app.application.services.local_seed_document_ingestion_service import (
     LocalSeedDocumentIngestionAction,
     LocalSeedDocumentIngestionService,
 )
+from app.application.services.markdown_chunking_service import MarkdownChunkingService
 from app.application.services.source_document_discovery import (
     SourceDocumentDiscoveryResult,
 )
@@ -33,6 +34,8 @@ from app.domain.documents.repositories import (
 )
 from app.domain.documents.source_candidates import SourceDocumentCandidate
 from app.domain.retrieval.entities import RetrievedChunk
+from app.providers.embeddings import EmbeddingProviderResponse
+from app.providers.fake_embedding_provider import FakeEmbeddingProvider
 
 
 class InMemorySourceDocumentRepository(SourceDocumentRepository):
@@ -90,23 +93,50 @@ class InMemoryDocumentVersionRepository(DocumentVersionRepository):
 class InMemorySectionVersionRepository(SectionVersionRepository):
     def __init__(self) -> None:
         self.section_versions: dict[UUID, SectionVersion] = {}
+        self.memberships: dict[tuple[UUID, UUID], int] = {}
 
     def list_for_document_version(
         self,
         document_version_id: UUID,
     ) -> list[SectionVersion]:
-        return sorted(
-            [
-                section
-                for section in self.section_versions.values()
-                if section.document_version_id == document_version_id
-            ],
-            key=lambda section: section.ordinal,
-        )
+        membership_rows = [
+            (section_version_id, ordinal)
+            for (
+                membership_document_version_id,
+                section_version_id,
+            ), ordinal in self.memberships.items()
+            if membership_document_version_id == document_version_id
+        ]
+
+        sections: list[SectionVersion] = []
+        for section_version_id, ordinal in sorted(
+            membership_rows,
+            key=lambda item: item[1],
+        ):
+            content = self.section_versions[section_version_id]
+            sections.append(
+                SectionVersion(
+                    id=content.id,
+                    document_version_id=document_version_id,
+                    stable_section_key=content.stable_section_key,
+                    heading_path=content.heading_path,
+                    heading_level=content.heading_level,
+                    title=content.title,
+                    body=content.body,
+                    section_checksum=content.section_checksum,
+                    ordinal=ordinal,
+                    created_at=content.created_at,
+                )
+            )
+
+        return sections
 
     def save_many(self, section_versions: list[SectionVersion]) -> None:
         for section_version in section_versions:
             self.section_versions[section_version.id] = section_version
+            self.memberships[
+                (section_version.document_version_id, section_version.id)
+            ] = section_version.ordinal
 
 
 class InMemoryChunkVersionRepository(ChunkVersionRepository):
@@ -518,7 +548,10 @@ def test_ingestion_creates_new_version_artifacts_when_content_changes(
     assert second_result.documents_seen == 1
     assert second_result.documents_changed == 1
     assert second_result.sections_created == 1
+    assert second_result.sections_modified == 1
+    assert second_result.sections_unchanged == 0
     assert second_result.chunks_created == 1
+    assert second_result.chunks_reused == 0
     assert second_result.embeddings_created == 1
     assert second_result.embeddings_reused == 0
     assert second_result.vector_entries_created == 0
@@ -583,3 +616,533 @@ def test_local_seed_ingestion_service_accepts_custom_discovery_service(
     assert result.source_path == tmp_path.as_posix()
     assert result.documents[0].external_id == "custom.md"
     assert result.documents[0].action == LocalSeedDocumentIngestionAction.CREATED
+
+
+MULTI_SECTION_DOCUMENT = """# Handbook
+
+## Summary
+
+Status is stable.
+
+## Risks
+
+No open risks.
+
+## Next Steps
+
+Continue monitoring.
+"""
+
+
+class SpyChunkingService(MarkdownChunkingService):
+    def __init__(self) -> None:
+        super().__init__()
+        self.section_ids: list[UUID] = []
+
+    def create_chunk_versions(self, *, section_version: SectionVersion) -> list[ChunkVersion]:
+        self.section_ids.append(section_version.id)
+        return super().create_chunk_versions(section_version=section_version)
+
+
+class CountingEmbeddingProvider:
+    provider = "fake"
+    model_name = "fake-embedding-v1"
+    dimensions = 8
+
+    def __init__(self) -> None:
+        self._inner = FakeEmbeddingProvider()
+        self.embed_calls = 0
+
+    def embed(self, text: str) -> EmbeddingProviderResponse:
+        self.embed_calls += 1
+        return self._inner.embed(text)
+
+
+def test_unchanged_document_skips_version_and_embedding_work(tmp_path: Path) -> None:
+    document_path = tmp_path / "handbook.md"
+    document_path.write_text(MULTI_SECTION_DOCUMENT, encoding="utf-8")
+    transaction = InMemoryDocumentIngestionTransaction()
+    chunker = SpyChunkingService()
+    embedding_provider = CountingEmbeddingProvider()
+    service = LocalSeedDocumentIngestionService(
+        source_path=tmp_path,
+        chunking_service=chunker,
+        embedding_provider=embedding_provider,
+    )
+
+    first = service.ingest(transaction)
+    first_chunker_calls = len(chunker.section_ids)
+    first_embed_calls = embedding_provider.embed_calls
+
+    second = service.ingest(transaction)
+
+    assert first.documents[0].action == LocalSeedDocumentIngestionAction.CREATED
+    assert second.documents[0].action == LocalSeedDocumentIngestionAction.UNCHANGED
+    assert len(transaction.document_version_repository.document_versions) == 1
+    assert len(chunker.section_ids) == first_chunker_calls
+    assert embedding_provider.embed_calls == first_embed_calls
+    assert second.sections_created == 0
+    assert second.chunks_created == 0
+    assert second.embeddings_created == 0
+
+
+def test_one_modified_section_skips_chunker_for_unchanged_sections(tmp_path: Path) -> None:
+    document_path = tmp_path / "handbook.md"
+    document_path.write_text(MULTI_SECTION_DOCUMENT, encoding="utf-8")
+    transaction = InMemoryDocumentIngestionTransaction()
+    chunker = SpyChunkingService()
+    embedding_provider = CountingEmbeddingProvider()
+    service = LocalSeedDocumentIngestionService(
+        source_path=tmp_path,
+        chunking_service=chunker,
+        embedding_provider=embedding_provider,
+    )
+
+    first = service.ingest(transaction)
+    first_version_id = next(
+        iter(transaction.document_version_repository.document_versions)
+    )
+    first_sections = transaction.section_version_repository.list_for_document_version(
+        first_version_id,
+    )
+    first_section_ids = {section.stable_section_key: section.id for section in first_sections}
+    first_chunker_calls = len(chunker.section_ids)
+    first_embed_calls = embedding_provider.embed_calls
+
+    document_path.write_text(
+        """# Handbook
+
+## Summary
+
+Status is stable.
+
+## Risks
+
+Risk level increased.
+
+## Next Steps
+
+Continue monitoring.
+""",
+        encoding="utf-8",
+    )
+
+    second = service.ingest(transaction)
+    second_version = max(
+        transaction.document_version_repository.document_versions.values(),
+        key=lambda version: version.version_number,
+    )
+    second_sections = transaction.section_version_repository.list_for_document_version(
+        second_version.id,
+    )
+    second_by_key = {section.stable_section_key: section for section in second_sections}
+
+    assert second.documents[0].action == LocalSeedDocumentIngestionAction.VERSION_CREATED
+    assert second.sections_unchanged == 2
+    assert second.sections_modified == 1
+    assert second.sections_added == 0
+    assert second.sections_removed == 0
+    assert second.sections_created == 1
+    assert second.chunks_reused == 2
+    assert second.chunks_created == 1
+    assert len(chunker.section_ids) == first_chunker_calls + 1
+    assert embedding_provider.embed_calls == first_embed_calls + 1
+
+    assert second_by_key["handbook/summary"].id == first_section_ids["handbook/summary"]
+    assert second_by_key["handbook/next-steps"].id == first_section_ids["handbook/next-steps"]
+    assert second_by_key["handbook/risks"].id != first_section_ids["handbook/risks"]
+
+    historical = transaction.section_version_repository.list_for_document_version(
+        first_version_id,
+    )
+    assert {section.id for section in historical} == set(first_section_ids.values())
+    assert first.documents_changed == 1
+
+
+def test_added_section_reuses_unchanged_sections(tmp_path: Path) -> None:
+    document_path = tmp_path / "handbook.md"
+    document_path.write_text(MULTI_SECTION_DOCUMENT, encoding="utf-8")
+    transaction = InMemoryDocumentIngestionTransaction()
+    chunker = SpyChunkingService()
+    service = LocalSeedDocumentIngestionService(
+        source_path=tmp_path,
+        chunking_service=chunker,
+    )
+
+    service.ingest(transaction)
+    first_chunker_calls = len(chunker.section_ids)
+
+    document_path.write_text(
+        MULTI_SECTION_DOCUMENT + "\n## Appendix\n\nExtra notes.\n",
+        encoding="utf-8",
+    )
+    second = service.ingest(transaction)
+
+    assert second.sections_unchanged == 3
+    assert second.sections_added == 1
+    assert second.sections_modified == 0
+    assert second.sections_removed == 0
+    assert second.sections_created == 1
+    assert second.chunks_reused == 3
+    assert second.chunks_created == 1
+    assert len(chunker.section_ids) == first_chunker_calls + 1
+
+
+def test_removed_section_stays_historical_and_leaves_current_projection(
+    tmp_path: Path,
+) -> None:
+    document_path = tmp_path / "handbook.md"
+    document_path.write_text(MULTI_SECTION_DOCUMENT, encoding="utf-8")
+    transaction = InMemoryDocumentIngestionTransaction()
+    chunker = SpyChunkingService()
+    service = LocalSeedDocumentIngestionService(
+        source_path=tmp_path,
+        chunking_service=chunker,
+    )
+
+    service.ingest(transaction)
+    first_version = next(
+        iter(transaction.document_version_repository.document_versions.values())
+    )
+    first_chunker_calls = len(chunker.section_ids)
+
+    document_path.write_text(
+        """# Handbook
+
+## Summary
+
+Status is stable.
+
+## Next Steps
+
+Continue monitoring.
+""",
+        encoding="utf-8",
+    )
+    second = service.ingest(transaction)
+    second_version = max(
+        transaction.document_version_repository.document_versions.values(),
+        key=lambda version: version.version_number,
+    )
+
+    historical_keys = {
+        section.stable_section_key
+        for section in transaction.section_version_repository.list_for_document_version(
+            first_version.id,
+        )
+    }
+    current_keys = {
+        section.stable_section_key
+        for section in transaction.section_version_repository.list_for_document_version(
+            second_version.id,
+        )
+    }
+    active_keys = {
+        entry.stable_section_key
+        for entry in transaction.vector_index_entry_repository.list_active_for_source_document(
+            next(iter(transaction.source_document_repository.documents.values())).id,
+        )
+    }
+
+    assert "handbook/risks" in historical_keys
+    assert "handbook/risks" not in current_keys
+    assert "handbook/risks" not in active_keys
+    assert second.sections_removed == 1
+    assert second.sections_unchanged == 2
+    assert second.sections_created == 0
+    assert second.chunks_reused == 2
+    assert second.chunks_created == 0
+    assert second.vector_entries_deactivated == 1
+    assert len(chunker.section_ids) == first_chunker_calls
+
+
+def test_modified_section_reuses_embedding_when_chunk_content_matches_history(
+    tmp_path: Path,
+) -> None:
+    document_path = tmp_path / "handbook.md"
+    document_path.write_text(
+        """# Handbook
+
+## Summary
+
+Alpha body.
+
+## Risks
+
+Beta body.
+""",
+        encoding="utf-8",
+    )
+    transaction = InMemoryDocumentIngestionTransaction()
+    embedding_provider = CountingEmbeddingProvider()
+    service = LocalSeedDocumentIngestionService(
+        source_path=tmp_path,
+        embedding_provider=embedding_provider,
+    )
+
+    service.ingest(transaction)
+    first_embed_calls = embedding_provider.embed_calls
+
+    document_path.write_text(
+        """# Handbook
+
+## Summary
+
+Gamma body.
+
+## Risks
+
+Beta body.
+""",
+        encoding="utf-8",
+    )
+    service.ingest(transaction)
+    mid_embed_calls = embedding_provider.embed_calls
+    assert mid_embed_calls == first_embed_calls + 1
+
+    document_path.write_text(
+        """# Handbook
+
+## Summary
+
+Alpha body.
+
+## Risks
+
+Beta body.
+""",
+        encoding="utf-8",
+    )
+    third = service.ingest(transaction)
+
+    assert third.sections_modified == 1
+    assert third.sections_unchanged == 1
+    assert third.embeddings_created == 0
+    assert third.embeddings_reused == 1
+    assert embedding_provider.embed_calls == mid_embed_calls
+
+
+def test_section_reorder_without_content_change_reuses_artifacts(tmp_path: Path) -> None:
+    document_path = tmp_path / "handbook.md"
+    document_path.write_text(
+        """# Handbook
+
+## Summary
+
+Status is stable.
+
+## Risks
+
+No open risks.
+""",
+        encoding="utf-8",
+    )
+    transaction = InMemoryDocumentIngestionTransaction()
+    chunker = SpyChunkingService()
+    service = LocalSeedDocumentIngestionService(
+        source_path=tmp_path,
+        chunking_service=chunker,
+    )
+
+    service.ingest(transaction)
+    first_version = next(
+        iter(transaction.document_version_repository.document_versions.values())
+    )
+    first_sections = {
+        section.stable_section_key: section
+        for section in transaction.section_version_repository.list_for_document_version(
+            first_version.id,
+        )
+    }
+    first_chunker_calls = len(chunker.section_ids)
+
+    document_path.write_text(
+        """# Handbook
+
+## Risks
+
+No open risks.
+
+## Summary
+
+Status is stable.
+""",
+        encoding="utf-8",
+    )
+    second = service.ingest(transaction)
+    second_version = max(
+        transaction.document_version_repository.document_versions.values(),
+        key=lambda version: version.version_number,
+    )
+    second_sections = transaction.section_version_repository.list_for_document_version(
+        second_version.id,
+    )
+
+    assert second.documents[0].action == LocalSeedDocumentIngestionAction.VERSION_CREATED
+    assert second.sections_unchanged == 2
+    assert second.sections_modified == 0
+    assert second.sections_created == 0
+    assert second.chunks_reused == 2
+    assert second.chunks_created == 0
+    assert len(chunker.section_ids) == first_chunker_calls
+    assert [section.stable_section_key for section in second_sections] == [
+        "handbook/risks",
+        "handbook/summary",
+    ]
+    assert second_sections[0].id == first_sections["handbook/risks"].id
+    assert second_sections[1].id == first_sections["handbook/summary"].id
+
+
+def test_mixed_delta_builds_complete_new_snapshot(tmp_path: Path) -> None:
+    document_path = tmp_path / "handbook.md"
+    document_path.write_text(
+        """# Handbook
+
+## Summary
+
+Status is stable.
+
+## Risks
+
+No open risks.
+
+## Next Steps
+
+Continue monitoring.
+""",
+        encoding="utf-8",
+    )
+    transaction = InMemoryDocumentIngestionTransaction()
+    chunker = SpyChunkingService()
+    service = LocalSeedDocumentIngestionService(
+        source_path=tmp_path,
+        chunking_service=chunker,
+    )
+
+    service.ingest(transaction)
+    first_chunker_calls = len(chunker.section_ids)
+
+    document_path.write_text(
+        """# Handbook
+
+## Summary
+
+Status is stable.
+
+## Risks
+
+Risk level increased.
+
+## Appendix
+
+Extra notes.
+""",
+        encoding="utf-8",
+    )
+    second = service.ingest(transaction)
+    second_version = max(
+        transaction.document_version_repository.document_versions.values(),
+        key=lambda version: version.version_number,
+    )
+    current_keys = [
+        section.stable_section_key
+        for section in transaction.section_version_repository.list_for_document_version(
+            second_version.id,
+        )
+    ]
+
+    assert second.sections_unchanged == 1
+    assert second.sections_modified == 1
+    assert second.sections_added == 1
+    assert second.sections_removed == 1
+    assert second.sections_created == 2
+    assert second.chunks_reused == 1
+    assert second.chunks_created == 2
+    assert len(chunker.section_ids) == first_chunker_calls + 2
+    assert current_keys == [
+        "handbook/summary",
+        "handbook/risks",
+        "handbook/appendix",
+    ]
+
+
+def test_retry_of_changed_document_does_not_duplicate_snapshot_membership(
+    tmp_path: Path,
+) -> None:
+    document_path = tmp_path / "handbook.md"
+    document_path.write_text(MULTI_SECTION_DOCUMENT, encoding="utf-8")
+    transaction = InMemoryDocumentIngestionTransaction()
+    service = LocalSeedDocumentIngestionService(source_path=tmp_path)
+
+    service.ingest(transaction)
+
+    document_path.write_text(
+        MULTI_SECTION_DOCUMENT.replace("No open risks.", "Risk level increased."),
+        encoding="utf-8",
+    )
+    second = service.ingest(transaction)
+    membership_count_after_change = len(
+        transaction.section_version_repository.memberships,
+    )
+    section_count_after_change = len(
+        transaction.section_version_repository.section_versions,
+    )
+
+    # Re-ingest identical changed content: document checksum matches latest version.
+    third = service.ingest(transaction)
+
+    assert second.documents[0].action == LocalSeedDocumentIngestionAction.VERSION_CREATED
+    assert third.documents[0].action == LocalSeedDocumentIngestionAction.UNCHANGED
+    assert len(transaction.document_version_repository.document_versions) == 2
+    assert (
+        len(transaction.section_version_repository.memberships)
+        == membership_count_after_change
+    )
+    assert (
+        len(transaction.section_version_repository.section_versions)
+        == section_count_after_change
+    )
+
+
+def test_vector_projection_includes_reused_unchanged_content(tmp_path: Path) -> None:
+    document_path = tmp_path / "handbook.md"
+    document_path.write_text(MULTI_SECTION_DOCUMENT, encoding="utf-8")
+    transaction = InMemoryDocumentIngestionTransaction()
+    service = LocalSeedDocumentIngestionService(source_path=tmp_path)
+
+    service.ingest(transaction)
+    source_document = next(iter(transaction.source_document_repository.documents.values()))
+    first_active = {
+        entry.stable_section_key: entry.section_version_id
+        for entry in transaction.vector_index_entry_repository.list_active_for_source_document(
+            source_document.id,
+        )
+    }
+
+    document_path.write_text(
+        MULTI_SECTION_DOCUMENT.replace("No open risks.", "Risk level increased."),
+        encoding="utf-8",
+    )
+    service.ingest(transaction)
+
+    second_active = {
+        entry.stable_section_key: entry
+        for entry in transaction.vector_index_entry_repository.list_active_for_source_document(
+            source_document.id,
+        )
+    }
+
+    assert set(second_active) == set(first_active)
+    assert (
+        second_active["handbook/summary"].section_version_id
+        == first_active["handbook/summary"]
+    )
+    assert (
+        second_active["handbook/next-steps"].section_version_id
+        == first_active["handbook/next-steps"]
+    )
+    assert (
+        second_active["handbook/risks"].section_version_id
+        != first_active["handbook/risks"]
+    )
+    assert all(entry.is_active for entry in second_active.values())

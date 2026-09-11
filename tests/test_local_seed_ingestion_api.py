@@ -25,7 +25,12 @@ class FakeLocalSeedDocumentIngestionService:
             documents_seen=1,
             documents_changed=1,
             sections_created=2,
+            sections_unchanged=0,
+            sections_modified=0,
+            sections_added=2,
+            sections_removed=0,
             chunks_created=3,
+            chunks_reused=0,
             embeddings_created=3,
             embeddings_reused=0,
             vector_entries_created=3,
@@ -43,7 +48,12 @@ class FakeLocalSeedDocumentIngestionService:
                     version_number=1,
                     content_checksum="content-checksum",
                     sections_created=2,
+                    sections_unchanged=0,
+                    sections_modified=0,
+                    sections_added=2,
+                    sections_removed=0,
                     chunks_created=3,
+                    chunks_reused=0,
                     embeddings_created=3,
                     embeddings_reused=0,
                     vector_entries_created=3,
@@ -77,7 +87,12 @@ def test_ingest_local_seed_documents_returns_ingestion_result() -> None:
     assert payload["documents_seen"] == 1
     assert payload["documents_changed"] == 1
     assert payload["sections_created"] == 2
+    assert payload["sections_unchanged"] == 0
+    assert payload["sections_modified"] == 0
+    assert payload["sections_added"] == 2
+    assert payload["sections_removed"] == 0
     assert payload["chunks_created"] == 3
+    assert payload["chunks_reused"] == 0
     assert payload["embeddings_created"] == 3
     assert payload["embeddings_reused"] == 0
     assert payload["vector_entries_created"] == 3
@@ -90,6 +105,7 @@ def test_ingest_local_seed_documents_returns_ingestion_result() -> None:
     assert payload["documents"][0]["version_number"] == 1
     assert payload["documents"][0]["sections_created"] == 2
     assert payload["documents"][0]["chunks_created"] == 3
+    assert payload["documents"][0]["chunks_reused"] == 0
     assert payload["documents"][0]["embeddings_created"] == 3
     assert payload["documents"][0]["embeddings_reused"] == 0
     assert payload["documents"][0]["vector_entries_created"] == 3

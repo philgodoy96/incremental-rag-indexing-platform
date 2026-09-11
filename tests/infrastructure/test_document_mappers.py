@@ -68,9 +68,10 @@ def test_document_version_mapper_round_trips_domain_entity() -> None:
 
 
 def test_section_version_mapper_round_trips_domain_entity() -> None:
+    document_version_id = uuid4()
     section_version = SectionVersion(
         id=uuid4(),
-        document_version_id=uuid4(),
+        document_version_id=document_version_id,
         stable_section_key="project-atlas-status/summary",
         heading_path=("Project Atlas Status", "Summary"),
         heading_level=2,
@@ -81,9 +82,15 @@ def test_section_version_mapper_round_trips_domain_entity() -> None:
     )
 
     model = section_version_to_model(section_version)
-    mapped_section = section_version_from_model(model)
+    mapped_section = section_version_from_model(
+        model,
+        document_version_id=document_version_id,
+        ordinal=0,
+    )
 
     assert mapped_section == section_version
+    assert "document_version_id" not in model.__table__.c
+    assert "ordinal" not in model.__table__.c
 
 
 def test_chunk_version_mapper_round_trips_domain_entity() -> None:
