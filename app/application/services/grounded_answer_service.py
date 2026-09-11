@@ -9,8 +9,13 @@ from app.domain.answering.entities import (
     AnswerCitationRecord,
     AnswerRecord,
     GroundedAnswer,
-    GroundedAnswerCitation,
     GroundedAnswerRequest,
+)
+from app.domain.answering.provenance import (
+    GeneratedAnswerDraft,
+    ProposedCitation,
+    ProvenanceValidationError,
+    ProvenanceValidator,
 )
 from app.domain.llm_observability.entities import LLMProviderCallRecord
 from app.domain.retrieval.entities import (
@@ -46,9 +51,11 @@ class GroundedAnswerService:
         *,
         retriever: SemanticRetriever,
         llm_provider: LLMProvider,
+        provenance_validator: ProvenanceValidator | None = None,
     ) -> None:
         self._retriever = retriever
         self._llm_provider = llm_provider
+        self._provenance_validator = provenance_validator or ProvenanceValidator()
 
     def answer(
         self,
@@ -92,6 +99,7 @@ class GroundedAnswerService:
                     question=request.question,
                     context_chunks=tuple(
                         LLMContextChunk(
+                            candidate_id=str(chunk.chunk_version_id),
                             rank=rank,
                             content=chunk.content,
                             heading_context=chunk.heading_context,
@@ -133,27 +141,35 @@ class GroundedAnswerService:
 
         llm_completed_at = utc_now()
 
-        citations = tuple(
-            GroundedAnswerCitation(
-                rank=rank,
-                vector_index_entry_id=chunk.vector_index_entry_id,
-                source_document_id=chunk.source_document_id,
-                document_version_id=chunk.document_version_id,
-                section_version_id=chunk.section_version_id,
-                chunk_version_id=chunk.chunk_version_id,
-                embedding_record_id=chunk.embedding_record_id,
-                stable_section_key=chunk.stable_section_key,
-                chunk_index=chunk.chunk_index,
-                heading_context=chunk.heading_context,
-                quote=chunk.content,
-                distance=chunk.distance,
-            )
-            for rank, chunk in enumerate(retrieval_result.results, start=1)
+        draft = GeneratedAnswerDraft(
+            answer=llm_response.answer,
+            citations=tuple(
+                ProposedCitation(
+                    candidate_id=citation.candidate_id,
+                    evidence_span=citation.evidence_span,
+                )
+                for citation in llm_response.citations
+            ),
         )
+
+        try:
+            citations = self._provenance_validator.validate(
+                draft=draft,
+                retrieval_snapshot=retrieval_result.results,
+            )
+        except ProvenanceValidationError:
+            self._persist_successful_llm_provider_call_without_answer(
+                query_trace_id=retrieval_result.query_trace_id,
+                transaction=transaction,
+                llm_response=llm_response,
+                started_at=llm_started_at,
+                completed_at=llm_completed_at,
+            )
+            raise
 
         grounded_answer = GroundedAnswer.answered(
             question=request.question,
-            answer=llm_response.answer,
+            answer=draft.answer,
             query_trace_id=retrieval_result.query_trace_id,
             citations=citations,
         )
@@ -218,6 +234,30 @@ class GroundedAnswerService:
         transaction.commit()
 
         return replace(grounded_answer, answer_id=answer_record.id)
+
+    def _persist_successful_llm_provider_call_without_answer(
+        self,
+        *,
+        query_trace_id: UUID,
+        transaction: AnsweringTransaction,
+        llm_response: LLMGenerationResponse,
+        started_at: datetime,
+        completed_at: datetime,
+    ) -> None:
+        provider_call = LLMProviderCallRecord.succeeded(
+            answer_id=None,
+            query_trace_id=query_trace_id,
+            provider=llm_response.usage.provider,
+            model_name=llm_response.usage.model_name,
+            prompt_tokens=llm_response.usage.prompt_tokens,
+            completion_tokens=llm_response.usage.completion_tokens,
+            estimated_cost_usd=llm_response.usage.estimated_cost_usd,
+            started_at=started_at,
+            completed_at=completed_at,
+        )
+
+        transaction.llm_provider_calls.save(provider_call)
+        transaction.commit()
 
     def _persist_failed_llm_provider_call(
         self,

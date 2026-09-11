@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from app.api.dependencies import (
@@ -21,6 +21,7 @@ from app.domain.answering.entities import (
     GroundedAnswerRequest,
 )
 from app.domain.answering.enums import GroundedAnswerStatus
+from app.domain.answering.provenance import ProvenanceValidationError
 from app.domain.retrieval.entities import MAX_RETRIEVAL_TOP_K
 
 router = APIRouter(prefix="/answers", tags=["answers"])
@@ -145,15 +146,21 @@ def create_grounded_answer(
         Depends(get_answering_transaction),
     ],
 ) -> GroundedAnswerApiResponse:
-    answer = service.answer(
-        request=GroundedAnswerRequest(
-            question=request.question,
-            top_k=request.top_k,
-            provider=request.provider,
-            model_name=request.model_name,
-        ),
-        transaction=transaction,
-    )
+    try:
+        answer = service.answer(
+            request=GroundedAnswerRequest(
+                question=request.question,
+                top_k=request.top_k,
+                provider=request.provider,
+                model_name=request.model_name,
+            ),
+            transaction=transaction,
+        )
+    except ProvenanceValidationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(error),
+        ) from error
 
     if answer.answer_id is None:
         raise RuntimeError("answer id is required")
