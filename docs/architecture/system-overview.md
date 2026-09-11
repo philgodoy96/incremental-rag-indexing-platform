@@ -75,11 +75,13 @@ The current repository implements:
 7. Avoiding duplicate embedding generation where reuse applies.
 8. Maintaining a rebuildable vector index.
 9. Semantic retrieval over the active vector index.
-10. Generating grounded answers with citations.
+10. Generating grounded answers with deterministically validated provenance citations.
 11. Capturing query traces.
 12. Running retrieval evaluation.
 13. Tracking estimated embedding cost through persisted cost records.
 14. Persisting LLM provider calls, answers, citations, and evaluation results for auditability.
+
+Deterministic provenance validation verifies that a model-selected evidence span came from a candidate in the immutable retrieval snapshot used for generation. It does not prove semantic entailment or factual correctness.
 
 Recommended future hardening includes keyword and hybrid retrieval, dedicated audit-log persistence, and automated prompt-injection risk detection.
 

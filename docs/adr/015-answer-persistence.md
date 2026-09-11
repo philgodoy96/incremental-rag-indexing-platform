@@ -23,7 +23,9 @@ The system will persist grounded answers using:
 
 AnswerRecord stores the final answer and request metadata.
 
-AnswerCitationRecord stores the citations returned with that answer.
+AnswerCitationRecord stores the validated provenance citations returned with
+that answer. Persisted `quote` values are validated evidence spans, not an
+automatic dump of every retrieved candidate.
 
 The Grounded Answer API will return answer_id.
 
@@ -71,7 +73,8 @@ Future work should add:
 
 - answer read endpoints
 - answer list endpoint
-- citation verification
+- deterministic provenance validation (ADR-023)
+- semantic entailment / groundedness evaluation
 - LLM cost tracking
 - prompt version tracking
 - provider latency tracking

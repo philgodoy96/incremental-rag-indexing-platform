@@ -28,7 +28,7 @@ Implemented capabilities include:
 - Embedding generation with cross-version reuse where input is unchanged
 - Current vector index projection for semantic retrieval
 - Semantic retrieval API with query traces
-- Grounded answer generation with persisted answers and citations
+- Grounded answer generation with persisted answers and deterministically validated provenance citations
 - LLM provider boundary with fake provider as default
 - Optional OpenAI provider adapter
 - Provider call persistence for successful and failed attempts
@@ -51,7 +51,7 @@ Source documents
   -> retrieval
   -> query traces
   -> grounded answers
-  -> citations / provider calls / usage reports
+  -> validated provenance citations / provider calls / usage reports
 ```
 
 Architecture choices:
@@ -60,8 +60,11 @@ Architecture choices:
 - domain entities separated from SQLAlchemy persistence models
 - repository contracts between application services and infrastructure
 - LLM access through a provider boundary rather than direct SDK coupling in services
+- deterministic provenance validation for model-proposed citations against the retrieval snapshot used for generation
 - `vector_index_entries` as the current retrieval projection, rebuildable from versions and embeddings
 - retrieval evaluation as a persistent measurement layer for ranking quality
+
+Deterministic provenance validation verifies that a model-selected evidence span came from a candidate in the immutable retrieval snapshot used for generation. It does not prove semantic entailment or factual correctness.
 
 See [System Overview](docs/architecture/system-overview.md) for deeper architecture documentation.
 
