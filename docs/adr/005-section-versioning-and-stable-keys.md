@@ -69,6 +69,9 @@ It may be added later.
 
 ## Follow-Up
 
+Section-level differential materialization across document versions is defined in
+[ADR-024](024-section-level-differential-materialization.md).
+
 Future work may improve stable section identity through:
 
 - explicit section IDs
